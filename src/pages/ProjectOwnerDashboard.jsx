@@ -3,13 +3,14 @@ import React from 'react';
 const ProjectOwnerDashboard = () => {
   return (
     <div style={{ padding: '2rem', textAlign: 'left' }}>
+      <img src="../pictures/qut.png" alt="" width="75" height="75" />
       <h1>PO-FES Dashboard</h1>
       <p>Welcome to the Project Owner Feedback and Evaluation System.</p>
-      
-      <div style={{ 
-        marginTop: '2rem', 
-        padding: '1.5rem', 
-        border: '1px solid var(--border)', 
+
+      <div style={{
+        marginTop: '2rem',
+        padding: '1.5rem',
+        border: '1px solid var(--border)',
         borderRadius: '8px',
         backgroundColor: 'var(--bg)'
       }}>
