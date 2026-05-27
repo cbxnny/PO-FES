@@ -1,21 +1,71 @@
-import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { loginUser, initAuth, validateEmail } from '../utils/auth';
 
 const Login = () => {
+    const navigate = useNavigate();
+
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
+    // Feedback and errors
+    const [emailError, setEmailError] = useState('');
+    const [errorMsg, setErrorMsg] = useState('');
+
+    // Seed mock users database when component mounts
+    useEffect(() => {
+        initAuth();
+    }, []);
+
+    // Validate email format in real-time
+    useEffect(() => {
+        if (email && !validateEmail(email)) {
+            setEmailError('Please enter a valid email address (e.g. name@example.com)');
+        } else {
+            setEmailError('');
+        }
+    }, [email]);
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Login logic here
-        console.log('Login attempt with:', { email, password });
+        setErrorMsg('');
+
+        // Final check on email format
+        if (!validateEmail(email)) {
+            setErrorMsg('Invalid email format. Please verify your email.');
+            return;
+        }
+
+        try {
+            const user = loginUser(email, password);
+
+            // Redirect based on user role
+            switch (user.role) {
+                case 'Project Owner':
+                    navigate('/project-owner-dashboard');
+                    break;
+                case 'Student':
+                    navigate('/student-dashboard');
+                    break;
+                case 'Industry Liaison':
+                    navigate('/industry-liaison-dashboard');
+                    break;
+                case 'Unit Coordinator':
+                    navigate('/unit-coordinator-dashboard');
+                    break;
+                default:
+                    navigate('/project-owner-dashboard');
+            }
+        } catch (err) {
+            setErrorMsg(err.message || 'Login failed. Please check your credentials.');
+        }
     };
 
     return (
         <div className="login-container">
-            {/* Background image added via CSS or inline. We use the generated image here. */}
+            {/* Background image added via CSS or inline */}
             <img src="/login-bg.png" alt="Abstract Background" className="login-bg-image" />
 
             <div className="login-content">
@@ -25,7 +75,15 @@ const Login = () => {
                         <p className="login-subtitle">Enter your credentials to access your account</p>
                     </div>
 
+                    {errorMsg && (
+                        <div className="auth-alert auth-alert-error">
+                            <AlertCircle size={18} />
+                            <span>{errorMsg}</span>
+                        </div>
+                    )}
+
                     <form className="login-form" onSubmit={handleSubmit}>
+                        {/* Email Input */}
                         <div className="input-group">
                             <label className="input-label" htmlFor="email">Email</label>
                             <div className="input-wrapper">
@@ -33,15 +91,17 @@ const Login = () => {
                                 <input
                                     id="email"
                                     type="email"
-                                    className="login-input"
+                                    className={`login-input ${emailError ? 'input-error' : ''}`}
                                     placeholder="Enter your email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     required
                                 />
                             </div>
+                            {emailError && <div className="error-message"><AlertCircle size={12} /> {emailError}</div>}
                         </div>
 
+                        {/* Password Input */}
                         <div className="input-group">
                             <label className="input-label" htmlFor="password">Password</label>
                             <div className="input-wrapper">
@@ -65,6 +125,7 @@ const Login = () => {
                             </div>
                         </div>
 
+                        {/* Remember Me and Forgot Password */}
                         <div className="login-options">
                             <label className="remember-me">
                                 <input type="checkbox" className="remember-checkbox" />
@@ -73,16 +134,15 @@ const Login = () => {
                             <a href="#" className="forgot-password">Forgot password?</a>
                         </div>
 
-                        <Link to="/project-owner-dashboard">
-                            <button type="submit" className="login-button">
-                                Sign In
-                            </button>
-                        </Link>
+                        {/* Sign In Button (no longer wrapped in Link) */}
+                        <button type="submit" className="login-button">
+                            Sign In
+                        </button>
                     </form>
 
                     <div className="signup-prompt">
                         Don't have an account?
-                        <a href="#" className="signup-link">Sign up</a>
+                        <Link to="/sign-up" className="signup-link">Sign up</Link>
                     </div>
                 </div>
             </div>
