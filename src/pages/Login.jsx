@@ -3,151 +3,109 @@ import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginUser, initAuth, validateEmail } from '../utils/auth';
 
-const Login = () => {
-    const navigate = useNavigate();
+export default function Login() {
+  const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
-    const [showPassword, setShowPassword] = useState(false);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+  useEffect(() => { initAuth(); }, []);
 
-    // Feedback and errors
-    const [emailError, setEmailError] = useState('');
-    const [errorMsg, setErrorMsg] = useState('');
+  useEffect(() => {
+    if (email && !validateEmail(email)) {
+      setEmailError('Please enter a valid email (e.g. name@qut.edu.au)');
+    } else {
+      setEmailError('');
+    }
+  }, [email]);
 
-    // Seed mock users database when component mounts
-    useEffect(() => {
-        initAuth();
-    }, []);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+    if (!validateEmail(email)) {
+      setErrorMsg('Please enter a valid email address.');
+      return;
+    }
+    try {
+      const user = loginUser(email, password);
+      switch (user.role) {
+        case 'Project Owner':    navigate('/project-owner-dashboard'); break;
+        case 'Student':          navigate('/student-dashboard'); break;
+        case 'Industry Liaison': navigate('/industry-liaison-dashboard'); break;
+        case 'Unit Coordinator': navigate('/unit-coordinator-dashboard'); break;
+        default:                 navigate('/project-owner-dashboard');
+      }
+    } catch (err) {
+      setErrorMsg(err.message || 'Invalid credentials. Please try again.');
+    }
+  };
 
-    // Validate email format in real-time
-    useEffect(() => {
-        if (email && !validateEmail(email)) {
-            setEmailError('Please enter a valid email address (e.g. name@example.com)');
-        } else {
-            setEmailError('');
-        }
-    }, [email]);
+  return (
+    <div className="auth-page">
+      <div className="auth-card">
+        <span className="auth-logo">PO<span>-FES</span></span>
+        <h1 className="auth-title">Welcome back</h1>
+        <p className="auth-subtitle">Sign in to your account to continue</p>
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        setErrorMsg('');
+        {errorMsg && (
+          <div className="auth-alert auth-alert-error">
+            <AlertCircle size={16} />{errorMsg}
+          </div>
+        )}
 
-        // Final check on email format
-        if (!validateEmail(email)) {
-            setErrorMsg('Invalid email format. Please verify your email.');
-            return;
-        }
-
-        try {
-            const user = loginUser(email, password);
-
-            // Redirect based on user role
-            switch (user.role) {
-                case 'Project Owner':
-                    navigate('/project-owner-dashboard');
-                    break;
-                case 'Student':
-                    navigate('/student-dashboard');
-                    break;
-                case 'Industry Liaison':
-                    navigate('/industry-liaison-dashboard');
-                    break;
-                case 'Unit Coordinator':
-                    navigate('/unit-coordinator-dashboard');
-                    break;
-                default:
-                    navigate('/project-owner-dashboard');
-            }
-        } catch (err) {
-            setErrorMsg(err.message || 'Login failed. Please check your credentials.');
-        }
-    };
-
-    return (
-        <div className="login-container">
-            {/* Background image added via CSS or inline */}
-            <img src="/login-bg.png" alt="Abstract Background" className="login-bg-image" />
-
-            <div className="login-content">
-                <div className="login-glass-panel">
-                    <div className="login-header">
-                        <h1 className="login-title">Welcome Back</h1>
-                        <p className="login-subtitle">Enter your credentials to access your account</p>
-                    </div>
-
-                    {errorMsg && (
-                        <div className="auth-alert auth-alert-error">
-                            <AlertCircle size={18} />
-                            <span>{errorMsg}</span>
-                        </div>
-                    )}
-
-                    <form className="login-form" onSubmit={handleSubmit}>
-                        {/* Email Input */}
-                        <div className="input-group">
-                            <label className="input-label" htmlFor="email">Email</label>
-                            <div className="input-wrapper">
-                                <Mail className="input-icon" size={20} />
-                                <input
-                                    id="email"
-                                    type="email"
-                                    className={`login-input ${emailError ? 'input-error' : ''}`}
-                                    placeholder="Enter your email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                />
-                            </div>
-                            {emailError && <div className="error-message"><AlertCircle size={12} /> {emailError}</div>}
-                        </div>
-
-                        {/* Password Input */}
-                        <div className="input-group">
-                            <label className="input-label" htmlFor="password">Password</label>
-                            <div className="input-wrapper">
-                                <Lock className="input-icon" size={20} />
-                                <input
-                                    id="password"
-                                    type={showPassword ? "text" : "password"}
-                                    className="login-input"
-                                    placeholder="Enter your password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                />
-                                <button
-                                    type="button"
-                                    className="password-toggle"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                >
-                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Remember Me and Forgot Password */}
-                        <div className="login-options">
-                            <label className="remember-me">
-                                <input type="checkbox" className="remember-checkbox" />
-                                <span className="remember-text">Remember me</span>
-                            </label>
-                            <a href="#" className="forgot-password">Forgot password?</a>
-                        </div>
-
-                        {/* Sign In Button (no longer wrapped in Link) */}
-                        <button type="submit" className="login-button">
-                            Sign In
-                        </button>
-                    </form>
-
-                    <div className="signup-prompt">
-                        Don't have an account?
-                        <Link to="/sign-up" className="signup-link">Sign up</Link>
-                    </div>
-                </div>
+        <form onSubmit={handleSubmit}>
+          <div className="auth-field">
+            <label className="auth-label">Email</label>
+            <div className="auth-input-wrap">
+              <Mail className="auth-input-icon" size={17} />
+              <input
+                type="email"
+                className={`auth-input ${emailError ? 'error' : ''}`}
+                placeholder="name@qut.edu.au"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
             </div>
-        </div>
-    );
-};
+            {emailError && <div className="auth-error-msg"><AlertCircle size={12} />{emailError}</div>}
+          </div>
 
-export default Login;
+          <div className="auth-field">
+            <label className="auth-label">Password</label>
+            <div className="auth-input-wrap">
+              <Lock className="auth-input-icon" size={17} />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="auth-input"
+                placeholder="Enter your password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+              />
+              <button type="button" className="auth-input-toggle" onClick={() => setShowPassword(!showPassword)}>
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="auth-options">
+            <label className="auth-check-label">
+              <input type="checkbox" className="auth-checkbox" />
+              Remember me
+            </label>
+            <a href="#" className="auth-forgot">Forgot password?</a>
+          </div>
+
+          <button type="submit" className="auth-btn">Sign in</button>
+        </form>
+
+        <hr className="auth-divider" />
+        <div className="auth-switch">
+          Don't have an account?<Link to="/sign-up">Sign up</Link>
+        </div>
+      </div>
+    </div>
+  );
+}
