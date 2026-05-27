@@ -97,68 +97,36 @@ export const checkPasswordStrength = (password) => {
   };
 };
 
-// Authenticate user
-export const loginUser = (email, password) => {
-  const users = getUsers();
-  const normalizedEmail = email.trim().toLowerCase();
+const API = 'http://localhost:3001/api';
 
-  const user = users.find(u => u.email.toLowerCase() === normalizedEmail);
-
-  if (!user) {
-    throw new Error('User account not found. Please sign up first.');
-  }
-
-  if (user.password !== password) {
-    throw new Error('Incorrect password. Please try again.');
-  }
-
-  // Set current user session
-  localStorage.setItem('po_fes_current_user', JSON.stringify(user));
-  return user;
+export const registerUser = async (name, email, password, role) => {
+  const res = await fetch(`${API}/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password, role })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error);
+  return data;
 };
 
-// Register a new user
-export const registerUser = (name, email, password, role) => {
-  const users = getUsers();
-  const normalizedEmail = email.trim().toLowerCase();
-
-  if (!name.trim()) {
-    throw new Error('Name is required.');
-  }
-
-  if (!validateEmail(normalizedEmail)) {
-    throw new Error('Please enter a valid email address.');
-  }
-
-  const { isValid, feedback } = checkPasswordStrength(password);
-  if (!isValid) {
-    throw new Error('Password does not meet requirements: ' + feedback.join(', '));
-  }
-
-  const emailExists = users.some(u => u.email.toLowerCase() === normalizedEmail);
-  if (emailExists) {
-    throw new Error('An account with this email already exists.');
-  }
-
-  const newUser = {
-    name: name.trim(),
-    email: normalizedEmail,
-    password,
-    role
-  };
-
-  users.push(newUser);
-  localStorage.setItem('po_fes_users', JSON.stringify(users));
-  return newUser;
+export const loginUser = async (email, password) => {
+  const res = await fetch(`${API}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error);
+  sessionStorage.setItem('po_fes_current_user', JSON.stringify(data));
+  return data;
 };
 
-// Logout utility
-export const logoutUser = () => {
-  localStorage.removeItem('po_fes_current_user');
-};
-
-// Get currently logged-in user
 export const getCurrentUser = () => {
-  const userJson = localStorage.getItem('po_fes_current_user');
-  return userJson ? JSON.parse(userJson) : null;
+  const u = sessionStorage.getItem('po_fes_current_user');
+  return u ? JSON.parse(u) : null;
+};
+
+export const logoutUser = () => {
+  sessionStorage.removeItem('po_fes_current_user');
 };

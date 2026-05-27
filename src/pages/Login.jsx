@@ -28,7 +28,7 @@ const Login = () => {
         }
     }, [email]);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setErrorMsg('');
 
@@ -39,7 +39,7 @@ const Login = () => {
         }
 
         try {
-            const user = loginUser(email, password);
+            const user = await loginUser(email, password);
 
             // Redirect based on user role
             switch (user.role) {

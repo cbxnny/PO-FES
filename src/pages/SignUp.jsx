@@ -64,7 +64,7 @@ const SignUp = () => {
         }
     }, [password, confirmPassword]);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setErrorMsg('');
         setSuccessMsg('');
@@ -95,7 +95,7 @@ const SignUp = () => {
         }
 
         try {
-            registerUser(name, email, password, role);
+            await registerUser(name, email, password, role);
             setSuccessMsg('Account created successfully! Redirecting to login...');
             
             // Redirect after 2 seconds
