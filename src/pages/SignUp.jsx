@@ -60,8 +60,7 @@ const SignUp = () => {
 
         setLoading(true);
         try {
-            const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
-            await registerUser(fullName, email, password, role);
+            await registerUser(firstName, lastName, email, password, role);
             navigate('/confirmation');
         } catch (err) {
             setErrorMsg(err.message || 'Registration failed. Please try again.');

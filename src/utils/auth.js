@@ -99,11 +99,11 @@ export const checkPasswordStrength = (password) => {
 
 const API = 'http://localhost:3001/api';
 
-export const registerUser = async (name, email, password, role) => {
+export const registerUser = async (firstName, lastName, email, password, role) => {
   const res = await fetch(`${API}/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password, role })
+    body: JSON.stringify({ firstName, lastName, email, password, role })
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error);

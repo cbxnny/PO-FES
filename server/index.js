@@ -8,7 +8,7 @@ app.use(cors({ origin: /^http:\/\/localhost:\d+$/ }));
 app.use(express.json());
 
 app.post('/api/signup', async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { firstName, lastName, email, password, role } = req.body;
   try {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
@@ -16,8 +16,8 @@ app.post('/api/signup', async (req, res) => {
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role',
-      [name, email.toLowerCase(), hashedPassword, role]
+      'INSERT INTO users (firstName, lastName, email, password, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, firstName, lastName, email, role',
+      [firstName, lastName, email.toLowerCase(), hashedPassword, role]
     );
     res.json(result.rows[0]);
   } catch (err) {
