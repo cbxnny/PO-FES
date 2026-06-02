@@ -1,61 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Lock, Eye, EyeOff, User, Shield, AlertCircle, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerUser, checkPasswordStrength, validateEmail } from '../utils/auth';
+import '../styles/dashboard.css';
 
 const SignUp = () => {
     const navigate = useNavigate();
-    
-    // Form fields
-    const [name, setName] = useState('');
+
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [role, setRole] = useState('Student');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [agreeTerms, setAgreeTerms] = useState(false);
 
-    // Password visibility
     const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
 
-    // Real-time error states
     const [emailError, setEmailError] = useState('');
-    const [passwordError, setPasswordError] = useState('');
     const [confirmError, setConfirmError] = useState('');
-
-    // Form-level alerts
     const [errorMsg, setErrorMsg] = useState('');
-    const [successMsg, setSuccessMsg] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    // Password strength
-    const [strength, setStrength] = useState({ score: 0, label: 'Weak', color: '#ef4444', feedback: [], isValid: false });
-
-    // Validate email on change
     useEffect(() => {
         if (email && !validateEmail(email)) {
-            setEmailError('Please enter a valid email (e.g. name@example.com)');
+            setEmailError('Enter a valid email address');
         } else {
             setEmailError('');
         }
     }, [email]);
 
-    // Check password strength on change
-    useEffect(() => {
-        if (password) {
-            const result = checkPasswordStrength(password);
-            setStrength(result);
-            if (!result.isValid && password.length > 0) {
-                setPasswordError('Password does not meet all security rules');
-            } else {
-                setPasswordError('');
-            }
-        } else {
-            setStrength({ score: 0, label: 'Weak', color: '#ef4444', feedback: [], isValid: false });
-            setPasswordError('');
-        }
-    }, [password]);
-
-    // Check password match on change
     useEffect(() => {
         if (confirmPassword && password !== confirmPassword) {
             setConfirmError('Passwords do not match');
@@ -67,222 +41,158 @@ const SignUp = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setErrorMsg('');
-        setSuccessMsg('');
 
-        // Perform email validation
         if (!validateEmail(email)) {
-            setErrorMsg('Invalid email format. Please check the email field.');
+            setErrorMsg('Please enter a valid email address.');
             return;
         }
 
-        // Check password strength
         const strengthCheck = checkPasswordStrength(password);
         if (!strengthCheck.isValid) {
-            setErrorMsg('Password is not strong enough. Ensure it meets all requirements.');
+            setErrorMsg('Password must be at least 8 characters and include an uppercase letter, number, and special character.');
             return;
         }
 
-        // Check password match
         if (password !== confirmPassword) {
-            setErrorMsg('Passwords do not match. Please verify your passwords.');
+            setErrorMsg('Passwords do not match.');
             return;
         }
 
-        // Check agreement
-        if (!agreeTerms) {
-            setErrorMsg('You must agree to the Terms and Conditions.');
-            return;
-        }
-
+        setLoading(true);
         try {
-            await registerUser(name, email, password, role);
-            setSuccessMsg('Account created successfully! Redirecting to login...');
-            
-            // Redirect after 2 seconds
-            setTimeout(() => {
-                navigate('/login');
-            }, 2000);
+            const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+            await registerUser(fullName, email, password, role);
+            navigate('/confirmation');
         } catch (err) {
             setErrorMsg(err.message || 'Registration failed. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div className="login-container">
-            <img src="/login-bg.png" alt="Abstract Background" className="login-bg-image" />
+        <div className="auth-page">
+            <div className="auth-card auth-card-wide">
+                <div className="auth-brand">QUT</div>
 
-            <div className="login-content">
-                <div className="login-glass-panel">
-                    <div className="login-header">
-                        <h1 className="login-title">Create Account</h1>
-                        <p className="login-subtitle">Join the PO-FES community to get started</p>
+                <h1 className="auth-heading">Create an account</h1>
+                <p className="auth-subheading">Sign up to get started</p>
+
+                {errorMsg && <div className="auth-error">{errorMsg}</div>}
+
+                <form className="auth-form" onSubmit={handleSubmit}>
+                    <div className="auth-name-row">
+                        <div className="auth-field">
+                            <label className="auth-label" htmlFor="firstName">First name</label>
+                            <input
+                                id="firstName"
+                                type="text"
+                                className="auth-input"
+                                placeholder="Jane"
+                                value={firstName}
+                                onChange={(e) => setFirstName(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="auth-field">
+                            <label className="auth-label" htmlFor="lastName">Last name</label>
+                            <input
+                                id="lastName"
+                                type="text"
+                                className="auth-input"
+                                placeholder="Smith"
+                                value={lastName}
+                                onChange={(e) => setLastName(e.target.value)}
+                                required
+                            />
+                        </div>
                     </div>
 
-                    {errorMsg && (
-                        <div className="auth-alert auth-alert-error">
-                            <AlertCircle size={18} />
-                            <span>{errorMsg}</span>
-                        </div>
-                    )}
-
-                    {successMsg && (
-                        <div className="auth-alert auth-alert-success">
-                            <CheckCircle size={18} />
-                            <span>{successMsg}</span>
-                        </div>
-                    )}
-
-                    <form className="login-form" onSubmit={handleSubmit}>
-                        {/* Name Input */}
-                        <div className="input-group">
-                            <label className="input-label" htmlFor="name">Full Name</label>
-                            <div className="input-wrapper">
-                                <User className="input-icon" size={20} />
-                                <input
-                                    id="name"
-                                    type="text"
-                                    className="login-input"
-                                    placeholder="Enter your name"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        {/* Email Input */}
-                        <div className="input-group">
-                            <label className="input-label" htmlFor="email">Email Address</label>
-                            <div className="input-wrapper">
-                                <Mail className="input-icon" size={20} />
-                                <input
-                                    id="email"
-                                    type="email"
-                                    className={`login-input ${emailError ? 'input-error' : ''}`}
-                                    placeholder="Enter your email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                />
-                            </div>
-                            {emailError && <div className="error-message"><AlertCircle size={12} /> {emailError}</div>}
-                        </div>
-
-                        {/* Role Select Dropdown */}
-                        <div className="input-group">
-                            <label className="input-label" htmlFor="role">User Role</label>
-                            <div className="input-wrapper">
-                                <Shield className="input-icon" size={20} />
-                                <select
-                                    id="role"
-                                    className="login-input login-select"
-                                    value={role}
-                                    onChange={(e) => setRole(e.target.value)}
-                                    required
-                                >
-                                    <option value="Project Owner">Project Owner</option>
-                                    <option value="Student">Student</option>
-                                    <option value="Industry Liaison">Industry Liaison</option>
-                                    <option value="Unit Coordinator">Unit Coordinator</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Password Input */}
-                        <div className="input-group">
-                            <label className="input-label" htmlFor="password">Password</label>
-                            <div className="input-wrapper">
-                                <Lock className="input-icon" size={20} />
-                                <input
-                                    id="password"
-                                    type={showPassword ? "text" : "password"}
-                                    className={`login-input ${passwordError ? 'input-error' : ''}`}
-                                    placeholder="Create a strong password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                />
-                                <button
-                                    type="button"
-                                    className="password-toggle"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                >
-                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                                </button>
-                            </div>
-                            
-                            {/* Real-time Password Strength Meter */}
-                            {password && (
-                                <div className="strength-meter">
-                                    <div className="strength-bars">
-                                        <div className="strength-bar" style={{ backgroundColor: strength.score >= 1 ? strength.color : '' }}></div>
-                                        <div className="strength-bar" style={{ backgroundColor: strength.score >= 2 ? strength.color : '' }}></div>
-                                        <div className="strength-bar" style={{ backgroundColor: strength.score >= 3 ? strength.color : '' }}></div>
-                                        <div className="strength-bar" style={{ backgroundColor: strength.score >= 4 ? strength.color : '' }}></div>
-                                    </div>
-                                    <div className="strength-text" style={{ color: strength.color }}>
-                                        Strength: {strength.label}
-                                    </div>
-                                    {strength.feedback.length > 0 && (
-                                        <div style={{ fontSize: '0.72rem', color: '#a0aec0', textAlign: 'left', marginTop: '0.15rem' }}>
-                                            Requires: {strength.feedback.join(', ')}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Confirm Password Input */}
-                        <div className="input-group">
-                            <label className="input-label" htmlFor="confirmPassword">Confirm Password</label>
-                            <div className="input-wrapper">
-                                <Lock className="input-icon" size={20} />
-                                <input
-                                    id="confirmPassword"
-                                    type={showConfirmPassword ? "text" : "password"}
-                                    className={`login-input ${confirmError ? 'input-error' : ''}`}
-                                    placeholder="Confirm your password"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    required
-                                />
-                                <button
-                                    type="button"
-                                    className="password-toggle"
-                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                >
-                                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                                </button>
-                            </div>
-                            {confirmError && <div className="error-message"><AlertCircle size={12} /> {confirmError}</div>}
-                        </div>
-
-                        {/* Terms and Conditions Checkbox */}
-                        <div className="login-options" style={{ marginTop: '0.25rem' }}>
-                            <label className="remember-me">
-                                <input 
-                                    type="checkbox" 
-                                    className="remember-checkbox" 
-                                    checked={agreeTerms}
-                                    onChange={(e) => setAgreeTerms(e.target.checked)}
-                                    required
-                                />
-                                <span className="remember-text" style={{ fontSize: '0.8rem', textAlign: 'left' }}>
-                                    I agree to the Terms of Service & Privacy Policy
-                                </span>
-                            </label>
-                        </div>
-
-                        {/* Submit Button */}
-                        <button type="submit" className="login-button">
-                            Register
-                        </button>
-                    </form>
-
-                    <div className="signup-prompt">
-                        Already have an account?
-                        <Link to="/login" className="signup-link">Sign in</Link>
+                    <div className="auth-field">
+                        <label className="auth-label" htmlFor="email">Email address</label>
+                        <input
+                            id="email"
+                            type="email"
+                            className={`auth-input${emailError ? ' auth-input-error' : ''}`}
+                            placeholder="name@qut.edu.au"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                        {emailError && <span className="auth-field-error">{emailError}</span>}
                     </div>
+
+                    <div className="auth-field">
+                        <label className="auth-label" htmlFor="role">Role</label>
+                        <select
+                            id="role"
+                            className="auth-select"
+                            value={role}
+                            onChange={(e) => setRole(e.target.value)}
+                            required
+                        >
+                            <option value="Student">Student</option>
+                            <option value="Project Owner">Project Owner</option>
+                            <option value="Industry Liaison">Industry Liaison</option>
+                            <option value="Unit Coordinator">Unit Coordinator</option>
+                        </select>
+                    </div>
+
+                    <div className="auth-field">
+                        <label className="auth-label" htmlFor="password">Password</label>
+                        <div className="auth-input-wrap">
+                            <input
+                                id="password"
+                                type={showPassword ? 'text' : 'password'}
+                                className="auth-input"
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
+                            <button
+                                type="button"
+                                className="auth-toggle-btn"
+                                onClick={() => setShowPassword(!showPassword)}
+                                tabIndex={-1}
+                            >
+                                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="auth-field">
+                        <label className="auth-label" htmlFor="confirmPassword">Confirm password</label>
+                        <div className="auth-input-wrap">
+                            <input
+                                id="confirmPassword"
+                                type={showConfirm ? 'text' : 'password'}
+                                className={`auth-input${confirmError ? ' auth-input-error' : ''}`}
+                                placeholder="••••••••"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                            />
+                            <button
+                                type="button"
+                                className="auth-toggle-btn"
+                                onClick={() => setShowConfirm(!showConfirm)}
+                                tabIndex={-1}
+                            >
+                                {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                        </div>
+                        {confirmError && <span className="auth-field-error">{confirmError}</span>}
+                    </div>
+
+                    <button type="submit" className="auth-btn" disabled={loading}>
+                        {loading ? 'Creating account...' : 'Create account'}
+                    </button>
+                </form>
+
+                <div className="auth-footer">
+                    Already have an account?
+                    <Link to="/login">Sign in</Link>
                 </div>
             </div>
         </div>
