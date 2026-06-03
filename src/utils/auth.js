@@ -26,7 +26,7 @@ const DEFAULT_USERS = [
   }
 ];
 
-// Initialize users in localStorage if they don't exist
+// Initialise users in localStorage if they don't exist
 export const initAuth = () => {
   if (!localStorage.getItem('po_fes_users')) {
     localStorage.setItem('po_fes_users', JSON.stringify(DEFAULT_USERS));
