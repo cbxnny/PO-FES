@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const pool = require('./db');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(cors({ origin: /^http:\/\/localhost:\d+$/ }));
@@ -19,7 +20,13 @@ app.post('/api/signup', async (req, res) => {
       'INSERT INTO users (firstName, lastName, email, password, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, firstName, lastName, email, role',
       [firstName, lastName, email.toLowerCase(), hashedPassword, role]
     );
-    res.json(result.rows[0]);
+    const user = result.rows[0];
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'beUoA}j}}[N?ZL7V+_Wm:4gGD8%d%)wL{qYul]o.gY_K&qnP|}N/gGQ6ufP[mO/aC5jJ<raf#S3M{:h%@;$CfJ',
+      { expiresIn: '24h' }
+    );
+    res.json({ user, token });
   } catch (err) {
     res.status(500).json({ error: 'Server error. Please try again.' });
   }
@@ -38,7 +45,12 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Incorrect password. Please try again.' });
     }
     const { password: _, ...userWithoutPassword } = user;
-    res.json(userWithoutPassword);
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'your_super_secret_jwt_key',
+      { expiresIn: '24h' }
+    );
+    res.json({ user: userWithoutPassword, token });
   } catch (err) {
     res.status(500).json({ error: 'Server error. Please try again.' });
   }
