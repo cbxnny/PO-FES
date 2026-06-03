@@ -8,6 +8,16 @@ const app = express();
 app.use(cors({ origin: /^http:\/\/localhost:\d+$/ }));
 app.use(express.json());
 
+
+const authenticateToken = require('./middleware/authMiddleware');
+
+// testing jwt
+app.get('/api/protected-data', authenticateToken, (req, res) => {
+
+  res.json({ message: "You have access!", user: req.user });
+});
+
+
 app.post('/api/signup', async (req, res) => {
   const { firstName, lastName, email, password, role } = req.body;
   try {

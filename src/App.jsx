@@ -9,21 +9,25 @@ import IndustryLiaisonDashboard from './pages/IndustryLiaisonDashboard';
 import UnitCoordinatorDashboard from './pages/UnitCoordinatorDashboard';
 import SubmitFeedback from './pages/SubmitFeedback';
 import EditDashboard from './pages/EditDashboard';
+import ProtectedRoute from './components/ProtectedRoute';
+import PublicRoute from './components/PublicRoute';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/sign-up" element={<SignUp />} />
+        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+        <Route path="/sign-up" element={<PublicRoute><SignUp /></PublicRoute>} />
         <Route path="/confirmation" element={<ConfirmationMessage />} />
-        <Route path="/client-dashboard" element={<ProjectOwnerDashboard />} />
-        <Route path="/student-dashboard" element={<StudentDashboard />} />
-        <Route path="/staff-dashboard" element={<IndustryLiaisonDashboard />} />
-        <Route path="/coordinator-dashboard" element={<UnitCoordinatorDashboard />} />
-        <Route path="/submit-feedback" element={<SubmitFeedback />} />
-        <Route path="/edit-dashboard" element={<EditDashboard />} />
+        
+        {/* Protected Routes */}
+        <Route path="/client-dashboard" element={<ProtectedRoute><ProjectOwnerDashboard /></ProtectedRoute>} />
+        <Route path="/student-dashboard" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
+        <Route path="/staff-dashboard" element={<ProtectedRoute><IndustryLiaisonDashboard /></ProtectedRoute>} />
+        <Route path="/coordinator-dashboard" element={<ProtectedRoute><UnitCoordinatorDashboard /></ProtectedRoute>} />
+        <Route path="/submit-feedback" element={<ProtectedRoute><SubmitFeedback /></ProtectedRoute>} />
+        <Route path="/edit-dashboard" element={<ProtectedRoute><EditDashboard /></ProtectedRoute>} />
 
         {/* Legacy route aliases */}
         <Route path="/project-owner-dashboard" element={<Navigate to="/client-dashboard" replace />} />

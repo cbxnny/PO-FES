@@ -107,7 +107,9 @@ export const registerUser = async (firstName, lastName, email, password, role) =
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error);
-  return data;
+  sessionStorage.setItem('po_fes_current_user', JSON.stringify(data.user));
+  sessionStorage.setItem('po_fes_token', data.token);
+  return data.user;
 };
 
 export const loginUser = async (email, password) => {
@@ -118,8 +120,9 @@ export const loginUser = async (email, password) => {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error);
-  sessionStorage.setItem('po_fes_current_user', JSON.stringify(data));
-  return data;
+  sessionStorage.setItem('po_fes_current_user', JSON.stringify(data.user));
+  sessionStorage.setItem('po_fes_token', data.token);
+  return data.user;
 };
 
 export const getCurrentUser = () => {
@@ -129,4 +132,5 @@ export const getCurrentUser = () => {
 
 export const logoutUser = () => {
   sessionStorage.removeItem('po_fes_current_user');
+  sessionStorage.removeItem('po_fes_token');
 };
