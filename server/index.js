@@ -57,7 +57,7 @@ app.post('/api/login', async (req, res) => {
     const { password: _, ...userWithoutPassword } = user;
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || 'your_super_secret_jwt_key',
+      process.env.JWT_SECRET || 'beUoA}j}}[N?ZL7V+_Wm:4gGD8%d%)wL{qYul]o.gY_K&qnP|}N/gGQ6ufP[mO/aC5jJ<raf#S3M{:h%@;$CfJ',
       { expiresIn: '24h' }
     );
     res.json({ user: userWithoutPassword, token });
