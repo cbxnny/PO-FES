@@ -8,7 +8,9 @@ const ConfirmationMessage = () => {
     return (
         <div className="auth-page">
             <div className="auth-card confirm-center">
-                <div className="auth-brand">QUT</div>
+                <div className="auth-brand">
+                  <img src="/pictures/qut.png" alt="QUT logo" className="auth-logo-img" />
+                </div>
 
                 <div className="confirm-avatar" />
 

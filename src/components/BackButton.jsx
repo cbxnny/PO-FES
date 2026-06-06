@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { getCurrentUser } from '../utils/auth';
 import { roleToDashboardPath } from '../utils/roleUtils';
 
-const BackButton = ({ to, label = 'Previous' }) => {
+const BackButton = ({ to, label = 'Back' }) => {
   const navigate = useNavigate();
   const user = getCurrentUser();
 

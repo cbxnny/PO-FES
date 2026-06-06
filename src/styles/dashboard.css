@@ -3,13 +3,17 @@
   --qut-surface: #ffffff;
   --qut-surface-2: #f8fafc;
   --qut-border: #d9e1ec;
-  --qut-navy: #071426;
-  --qut-navy-2: #12345a;
-  --qut-blue: #2563eb;
-  --qut-blue-hover: #1d4ed8;
+
+  /* Updated header/theme colour */
+  --qut-navy: #012a4c;
+  --qut-navy-2: #014f86;
+  --qut-blue: #014f86;
+  --qut-blue-hover: #013a63;
+
   --qut-text: #172033;
   --qut-text-muted: #667085;
   --qut-text-dim: #94a3b8;
+
   --qut-green: #0f766e;
   --qut-green-bg: #dff8f4;
   --qut-orange: #b45309;
@@ -18,6 +22,7 @@
   --qut-red-bg: #ffe4e2;
   --qut-purple: #6d28d9;
   --qut-purple-bg: #ede9fe;
+
   --qut-radius: 14px;
   --qut-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
@@ -77,16 +82,42 @@ p {
 }
 
 .qut-brand {
-  font-size: 18px;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: 3px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  background: transparent;
+  border-radius: 50%;
+  padding: 2px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.18);
+}
+
+.qut-brand::before {
+  content: "";
+  position: absolute;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.22);
+  z-index: 0;
+}
+
+.qut-logo-img {
+  position: relative;
+  z-index: 1;
+  height: 72px;
+  width: auto;
+  display: block;
+  object-fit: contain;
 }
 
 .qut-header-divider {
   width: 1px;
-  height: 36px;
+  height: 70px;
   background: rgba(255, 255, 255, 0.25);
   flex-shrink: 0;
 }
@@ -100,12 +131,12 @@ p {
 
 .qut-page-subtitle {
   font-size: 15px;
-  color: #c7d2fe;
+  color: rgba(255, 255, 255, 0.88);
   margin-top: 3px;
 }
 
 .qut-current-user {
-  color: #e2e8f0;
+  color: rgba(255, 255, 255, 0.95);
   font-weight: 600;
 }
 
@@ -546,10 +577,16 @@ p {
 }
 
 .auth-brand {
-  color: var(--qut-navy);
-  font-weight: 800;
-  letter-spacing: 3px;
+  display: flex;
+  align-items: center;
   margin-bottom: 18px;
+}
+
+.auth-logo-img {
+  height: 42px;
+  width: auto;
+  display: block;
+  object-fit: contain;
 }
 
 .auth-heading {
