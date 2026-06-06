@@ -1,5 +1,7 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../styles/dashboard.css';
+import { getCurrentUser, logoutUser } from '../utils/auth';
 
 const Stars = ({ score, max = 5 }) => {
     const filled = Math.round(score);
@@ -34,15 +36,31 @@ const FeedbackCard = ({ label, score, scoreLabel, comment }) => (
 );
 
 const StudentDashboard = () => {
+    const navigate = useNavigate();
+    const user = getCurrentUser();
+    const firstName = user ? (user.firstName || user.firstname || '') : '';
+    const lastName = user ? (user.lastName || user.lastname || '') : '';
+    const displayName = user ? (user.name || `${firstName} ${lastName}`.trim() || user.email) : 'User';
+
+    const handleLogout = () => {
+        logoutUser();
+        navigate('/login');
+    };
+
     return (
         <div className="qut-page">
-            <header className="qut-header">
-                <span className="qut-brand">QUT</span>
-                <div className="qut-header-divider" />
-                <div>
-                    <div className="qut-page-title">Dashboard</div>
-                    <div className="qut-page-subtitle">Hey, Alex</div>
+            <header className="qut-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <span className="qut-brand">QUT</span>
+                    <div className="qut-header-divider" />
+                    <div>
+                        <div className="qut-page-title">Dashboard</div>
+                        <div className="qut-page-subtitle">Hey, {displayName}</div>
+                    </div>
                 </div>
+                <button className="qut-btn qut-btn-outline" onClick={handleLogout}>
+                    Logout
+                </button>
             </header>
 
             <div className="qut-content" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>

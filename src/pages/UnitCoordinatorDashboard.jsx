@@ -1,5 +1,7 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../styles/dashboard.css';
+import { getCurrentUser, logoutUser } from '../utils/auth';
 
 const teams = [
     { name: 'Team Alpha',   client: 'Client 2', completion: 80, status: 'Submitted' },
@@ -10,19 +12,35 @@ const teams = [
 ];
 
 const CoordinatorDashboard = () => {
+    const navigate = useNavigate();
+    const user = getCurrentUser();
+    const firstName = user ? (user.firstName || user.firstname || '') : '';
+    const lastName = user ? (user.lastName || user.lastname || '') : '';
+    const displayName = user ? (user.name || `${firstName} ${lastName}`.trim() || user.email) : 'User';
+
+    const handleLogout = () => {
+        logoutUser();
+        navigate('/login');
+    };
+
     const totalTeams = teams.length + 20;
     const submitted = teams.filter((t) => t.status === 'Submitted').length + 14;
     const missing = teams.filter((t) => t.status === 'Missing').length + 6;
 
     return (
         <div className="qut-page">
-            <header className="qut-header">
-                <span className="qut-brand">QUT</span>
-                <div className="qut-header-divider" />
-                <div>
-                    <div className="qut-page-title">Dashboard</div>
-                    <div className="qut-page-subtitle">Welcome, Coord Name</div>
+            <header className="qut-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <span className="qut-brand">QUT</span>
+                    <div className="qut-header-divider" />
+                    <div>
+                        <div className="qut-page-title">Dashboard</div>
+                        <div className="qut-page-subtitle">Welcome, {displayName}!</div>
+                    </div>
                 </div>
+                <button className="qut-btn qut-btn-outline" onClick={handleLogout}>
+                    Logout
+                </button>
             </header>
 
             <div className="qut-content">
