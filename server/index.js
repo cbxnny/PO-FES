@@ -17,7 +17,7 @@ app.get('/api/protected-data', authenticateToken, (req, res) => {
   res.json({ message: "You have access!", user: req.user });
 });
 
-
+// signup api
 app.post('/api/signup', async (req, res) => {
   const { firstName, lastName, email, password, role } = req.body;
   try {
@@ -31,17 +31,19 @@ app.post('/api/signup', async (req, res) => {
       [firstName, lastName, email.toLowerCase(), hashedPassword, role]
     );
     const user = result.rows[0];
+    const { password: _, ...userWithoutPassword } = user;
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET || 'beUoA}j}}[N?ZL7V+_Wm:4gGD8%d%)wL{qYul]o.gY_K&qnP|}N/gGQ6ufP[mO/aC5jJ<raf#S3M{:h%@;$CfJ',
       { expiresIn: '24h' }
     );
-    res.json({ user, token });
+    res.json({ user: userWithoutPassword, token });
   } catch (err) {
     res.status(500).json({ error: 'Server error. Please try again.' });
   }
 });
 
+// login api
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   try {
