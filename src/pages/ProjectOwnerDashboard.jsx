@@ -1,115 +1,80 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import DashboardHeader from '../components/DashboardHeader';
+import { getCurrentUser } from '../utils/auth';
+import { getUserDisplayName } from '../utils/roleUtils';
+import { formatDate, getTeams, getTeamStatus } from '../data/feedbackData';
 import '../styles/dashboard.css';
-import { getCurrentUser, logoutUser } from '../utils/auth';
 
-const yourTeams = [
-    { name: 'Team Alpha' },
-    { name: 'Team Beta' },
-    { name: 'Team Gamma' },
-];
+const ProjectOwnerDashboard = () => {
+  const navigate = useNavigate();
+  const user = getCurrentUser();
+  const displayName = getUserDisplayName(user);
+  const allTeams = getTeams();
+  const matchingTeams = allTeams.filter((team) => team.clientName === displayName);
+  const teams = matchingTeams.length ? matchingTeams : allTeams.filter((team) => ['Maya Patel', 'Client A', 'Client W'].includes(team.clientName));
+  const previousSubmissions = teams
+    .flatMap((team) => team.feedbackHistory
+      .filter((feedback) => feedback.source === 'client')
+      .map((feedback) => ({ ...feedback, teamName: team.teamName })))
+    .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
 
-const previousSubmissions = [
-    { name: 'Team Alpha', status: 'Submitted' },
-    { name: 'Team Beta',  status: 'Submitted' },
-];
+  return (
+    <div className="qut-page">
+      <DashboardHeader title="Client Dashboard" />
 
-const ClientDashboard = () => {
-    const navigate = useNavigate();
-    const user = getCurrentUser();
-    const firstName = user ? (user.firstName || user.firstname || '') : '';
-    const lastName = user ? (user.lastName || user.lastname || '') : '';
-    const displayName = user ? (user.name || `${firstName} ${lastName}`.trim() || user.email) : 'User';
+      <main className="qut-content">
+        <h2 className="qut-section-heading">Your Teams</h2>
 
-    const handleLogout = () => {
-        logoutUser();
-        navigate('/login');
-    };
+        <div className="qut-compact-grid">
+          {teams.map((team) => {
+            const status = getTeamStatus(team);
 
-    return (
-        <div className="qut-page">
-            <header className="qut-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    <span className="qut-brand">QUT</span>
-                    <div className="qut-header-divider" />
-                    <div>
-                        <div className="qut-page-title">Dashboard</div>
-                        <div className="qut-page-subtitle">Welcome, {displayName}!</div>
-                    </div>
-                </div>
-                <button className="qut-btn qut-btn-outline" onClick={handleLogout}>
-                    Logout
-                </button>
-            </header>
-
-            <div className="qut-content" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
-
-                {/* Your Teams */}
-                <div className="qut-card">
-                    <div className="qut-section-label">Your Teams</div>
-                    <table className="qut-table">
-                        <thead>
-                            <tr>
-                                <th>Team</th>
-                                <th></th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {yourTeams.map((t) => (
-                                <tr key={t.name}>
-                                    <td>{t.name}</td>
-                                    <td>
-                                        <button className="qut-btn qut-btn-outline qut-btn-sm">
-                                            View
-                                        </button>
-                                    </td>
-                                    <td>
-                                        <button
-                                            className="qut-btn qut-btn-primary qut-btn-sm"
-                                            onClick={() => navigate('/submit-feedback')}
-                                        >
-                                            Submit feedback
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            return (
+              <section className="qut-card qut-compact-card" key={team.id}>
+                <div>
+                  <h3>{team.teamName}</h3>
+                  <p><strong>Project:</strong> {team.projectName}</p>
+                  <p><strong>Last feedback:</strong> {status.lastText}</p>
+                  <span className={`qut-status ${status.className}`}>{status.label}</span>
                 </div>
 
-                {/* Previous Submissions */}
-                <div className="qut-card">
-                    <div className="qut-section-label">Previous Submissions</div>
-                    <table className="qut-table">
-                        <thead>
-                            <tr>
-                                <th>Team</th>
-                                <th>Status</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {previousSubmissions.map((s) => (
-                                <tr key={s.name}>
-                                    <td>{s.name}</td>
-                                    <td>
-                                        <span className="qut-badge qut-badge-green">{s.status}</span>
-                                    </td>
-                                    <td>
-                                        <button className="qut-btn qut-btn-outline qut-btn-sm">
-                                            View
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className="qut-button-row">
+                  <button className="qut-btn qut-btn-outline" onClick={() => navigate(`/feedback-timeline/${team.id}`)}>
+                    View Timeline
+                  </button>
+                  <button className="qut-btn qut-btn-primary" onClick={() => navigate(`/submit-feedback/${team.id}`)}>
+                    Submit Feedback
+                  </button>
                 </div>
-
-            </div>
+              </section>
+            );
+          })}
         </div>
-    );
+
+        <div className="qut-spacer" />
+        <h2 className="qut-section-heading">Previous Submissions</h2>
+
+        <div className="qut-list-grid">
+          {previousSubmissions.length ? previousSubmissions.map((submission) => (
+            <section className="qut-card qut-feedback-card" key={submission.id}>
+              <div className="qut-feedback-topline">
+                <span className="qut-status client">Client Feedback</span>
+                <span className="qut-date-text">{formatDate(submission.submittedAt)}</span>
+              </div>
+              <h3>{submission.teamName}</h3>
+              <p><strong>Team score:</strong> {submission.teamScore ?? 'N/A'}</p>
+              <p>{submission.teamComment}</p>
+            </section>
+          )) : (
+            <section className="qut-card">
+              <p>No previous submissions yet.</p>
+            </section>
+          )}
+        </div>
+      </main>
+    </div>
+  );
 };
 
-export default ClientDashboard;
+export default ProjectOwnerDashboard;
