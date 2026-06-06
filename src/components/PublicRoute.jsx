@@ -1,29 +1,17 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { getCurrentUser } from '../utils/auth';
+import { roleToDashboardPath } from '../utils/roleUtils';
 
 const PublicRoute = ({ children }) => {
-    const user = getCurrentUser();
-    const token = sessionStorage.getItem('po_fes_token');
+  const user = getCurrentUser();
+  const token = sessionStorage.getItem('po_fes_token');
 
-    // If the user is already logged in, redirect them to their respective dashboard
-    if (user && token) {
-        switch (user.role) {
-            case 'Project Owner':
-                return <Navigate to="/client-dashboard" replace />;
-            case 'Student':
-                return <Navigate to="/student-dashboard" replace />;
-            case 'Industry Liaison':
-                return <Navigate to="/staff-dashboard" replace />;
-            case 'Unit Coordinator':
-                return <Navigate to="/coordinator-dashboard" replace />;
-            default:
-                return <Navigate to="/client-dashboard" replace />;
-        }
-    }
+  if (user && token) {
+    return <Navigate to={roleToDashboardPath(user.role)} replace />;
+  }
 
-    // Otherwise, render the requested page (login, signup, etc.)
-    return children;
+  return children;
 };
 
 export default PublicRoute;

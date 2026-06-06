@@ -72,7 +72,9 @@ const SignUp = () => {
     return (
         <div className="auth-page">
             <div className="auth-card auth-card-wide">
-                <div className="auth-brand">QUT</div>
+                <div className="auth-brand">
+                  <img src="/pictures/qut.png" alt="QUT logo" className="auth-logo-img" />
+                </div>
 
                 <h1 className="auth-heading">Create an account</h1>
                 <p className="auth-subheading">Sign up to get started</p>
@@ -132,6 +134,7 @@ const SignUp = () => {
                         >
                             <option value="Student">Student</option>
                             <option value="Project Owner">Project Owner</option>
+                            <option value="Teaching Staff">Teaching Staff / Tutor</option>
                             <option value="Industry Liaison">Industry Liaison</option>
                             <option value="Unit Coordinator">Unit Coordinator</option>
                         </select>

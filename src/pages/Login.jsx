@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginUser, initAuth, validateEmail } from '../utils/auth';
+import { roleToDashboardPath } from '../utils/roleUtils';
 import '../styles/dashboard.css';
 
 const Login = () => {
@@ -38,22 +39,7 @@ const Login = () => {
         setLoading(true);
         try {
             const user = await loginUser(email, password);
-            switch (user.role) {
-                case 'Project Owner':
-                    navigate('/client-dashboard');
-                    break;
-                case 'Student':
-                    navigate('/student-dashboard');
-                    break;
-                case 'Industry Liaison':
-                    navigate('/staff-dashboard');
-                    break;
-                case 'Unit Coordinator':
-                    navigate('/coordinator-dashboard');
-                    break;
-                default:
-                    navigate('/client-dashboard');
-            }
+            navigate(roleToDashboardPath(user.role), { replace: true });
         } catch (err) {
             setErrorMsg(err.message || 'Login failed. Please check your credentials.');
         } finally {
@@ -64,7 +50,9 @@ const Login = () => {
     return (
         <div className="auth-page">
             <div className="auth-card">
-                <div className="auth-brand">QUT</div>
+                <div className="auth-brand">
+                <img src="/pictures/qut.png" alt="QUT logo" className="auth-logo-img" />
+                </div>
 
                 <h1 className="auth-heading">Welcome back</h1>
                 <p className="auth-subheading">Sign in to your account</p>

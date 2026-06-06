@@ -134,3 +134,5 @@ export const logoutUser = () => {
   sessionStorage.removeItem('po_fes_current_user');
   sessionStorage.removeItem('po_fes_token');
 };
+
+export const getAuthToken = () => sessionStorage.getItem('po_fes_token');
