@@ -1,94 +1,104 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import DashboardHeader from '../components/DashboardHeader';
+import { getTeams, getTeamStatus } from '../data/feedbackData';
 import '../styles/dashboard.css';
 
-const teams = [
-    { name: 'Team Alpha',   client: 'Client 2', completion: 80, status: 'Submitted' },
-    { name: 'Team Beta',    client: 'Client X', completion: 80, status: 'Submitted' },
-    { name: 'Team Gamma',   client: 'Client W', completion: 40, status: 'Missing'   },
-    { name: 'Team Delta',   client: 'Client B', completion: 90, status: 'Submitted' },
-    { name: 'Team Epsilon', client: 'Client A', completion: 25, status: 'Missing'   },
-];
+const UnitCoordinatorDashboard = () => {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
+  const teams = getTeams();
 
-const CoordinatorDashboard = () => {
-    const totalTeams = teams.length + 20;
-    const submitted = teams.filter((t) => t.status === 'Submitted').length + 14;
-    const missing = teams.filter((t) => t.status === 'Missing').length + 6;
+  const filteredTeams = useMemo(() => {
+    return teams.filter((team) => {
+      const status = getTeamStatus(team);
+      const search = query.toLowerCase();
+      const matchesSearch =
+        team.teamName.toLowerCase().includes(search) ||
+        team.projectName.toLowerCase().includes(search) ||
+        team.clientName.toLowerCase().includes(search);
 
-    return (
-        <div className="qut-page">
-            <header className="qut-header">
-                <span className="qut-brand">QUT</span>
-                <div className="qut-header-divider" />
-                <div>
-                    <div className="qut-page-title">Dashboard</div>
-                    <div className="qut-page-subtitle">Welcome, Coord Name</div>
-                </div>
-            </header>
+      const matchesFilter =
+        filter === 'all' ||
+        (filter === 'recent' && status.className === 'recent') ||
+        (filter === 'overdue' && status.className !== 'recent') ||
+        (filter === 'escalated' && team.escalated);
 
-            <div className="qut-content">
+      return matchesSearch && matchesFilter;
+    });
+  }, [filter, query, teams]);
 
-                {/* Stats bar */}
-                <div className="qut-stats-bar">
-                    <div className="qut-stat-item">
-                        <span className="qut-stat-label">Total teams</span>
-                        <span className="qut-stat-value">{totalTeams}</span>
-                    </div>
-                    <div className="qut-stat-divider" />
-                    <div className="qut-stat-item">
-                        <span className="qut-stat-label">Feedback submitted</span>
-                        <span className="qut-stat-value" style={{ color: 'var(--qut-blue-light)' }}>{submitted}</span>
-                    </div>
-                    <div className="qut-stat-divider" />
-                    <div className="qut-stat-item">
-                        <span className="qut-stat-label">Missing feedback</span>
-                        <span className="qut-stat-value" style={{ color: 'var(--qut-orange)' }}>{missing}</span>
-                    </div>
-                </div>
+  const submitted = teams.filter((team) => team.feedbackHistory.length).length;
+  const missing = teams.filter((team) => getTeamStatus(team).className !== 'recent').length;
 
-                {/* Teams list */}
-                <div className="qut-card">
-                    <div className="qut-section-label">Teams List</div>
-                    <table className="qut-table">
-                        <thead>
-                            <tr>
-                                <th>Team</th>
-                                <th>Client</th>
-                                <th>Completion</th>
-                                <th>Status</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {teams.map((t) => (
-                                <tr key={t.name}>
-                                    <td>{t.name}</td>
-                                    <td style={{ color: 'var(--qut-text-muted)' }}>{t.client}</td>
-                                    <td style={{ color: 'var(--qut-text-muted)' }}>{t.completion}%</td>
-                                    <td>
-                                        <span className={`qut-badge ${t.status === 'Submitted' ? 'qut-badge-green' : 'qut-badge-orange'}`}>
-                                            {t.status}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <button className="qut-btn qut-btn-outline qut-btn-sm">
-                                            Contact
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+  return (
+    <div className="qut-page">
+      <DashboardHeader title="Coordinator Dashboard" />
 
-                <div style={{ marginTop: '20px' }}>
-                    <button className="qut-btn qut-btn-primary">
-                        Export all data
-                    </button>
-                </div>
+      <main className="qut-content">
+        <section className="qut-card qut-metric-strip">
+          <div className="qut-metric-item">
+            <span>Total Teams</span>
+            <strong>{teams.length}</strong>
+          </div>
+          <div className="qut-metric-item">
+            <span>Feedback Submitted</span>
+            <strong>{submitted}</strong>
+          </div>
+          <div className="qut-metric-item">
+            <span>Missing Feedback</span>
+            <strong>{missing}</strong>
+          </div>
+        </section>
 
-            </div>
+        <div className="qut-spacer" />
+        <h2 className="qut-section-heading">Search and Filters</h2>
+        <div className="qut-toolbar">
+          <input
+            className="qut-input"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search team, client, project..."
+          />
+          <button className="qut-btn qut-btn-outline" onClick={() => setFilter('all')}>All</button>
+          <button className="qut-btn qut-btn-outline" onClick={() => setFilter('recent')}>Recent Feedback</button>
+          <button className="qut-btn qut-btn-outline" onClick={() => setFilter('overdue')}>No Feedback 14+ Days</button>
+          <button className="qut-btn qut-btn-outline" onClick={() => setFilter('escalated')}>Escalated</button>
         </div>
-    );
+
+        <h2 className="qut-section-heading">Teams List</h2>
+        <div className="qut-list-grid">
+          {filteredTeams.map((team) => {
+            const status = getTeamStatus(team);
+
+            return (
+              <section className="qut-card qut-compact-card" key={team.id}>
+                <div>
+                  <h3>{team.teamName}</h3>
+                  <p><strong>Client:</strong> {team.clientName}</p>
+                  <p><strong>Project:</strong> {team.projectName}</p>
+                  <p><strong>Last feedback:</strong> {status.lastText}</p>
+                  <span className={`qut-status ${status.className}`}>{status.label}</span>
+                  {team.escalated && <span className="qut-status missing">Escalated</span>}
+                </div>
+
+                <div className="qut-button-row">
+                  <button className="qut-btn qut-btn-outline" onClick={() => navigate(`/feedback-timeline/${team.id}`)}>View Timeline</button>
+                  <button className="qut-btn qut-btn-outline" onClick={() => alert('Contact feature placeholder.')}>Contact</button>
+                  <button className="qut-btn qut-btn-danger" onClick={() => alert('Escalated to Industry Liaison.')}>Escalate</button>
+                </div>
+              </section>
+            );
+          })}
+        </div>
+
+        <div className="qut-button-row qut-top-gap">
+          <button className="qut-btn qut-btn-primary" onClick={() => alert('Export would download all feedback data.')}>Export All Data</button>
+        </div>
+      </main>
+    </div>
+  );
 };
 
-export default CoordinatorDashboard;
+export default UnitCoordinatorDashboard;

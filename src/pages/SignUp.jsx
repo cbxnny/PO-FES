@@ -60,8 +60,7 @@ const SignUp = () => {
 
         setLoading(true);
         try {
-            const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
-            await registerUser(fullName, email, password, role);
+            await registerUser(firstName.trim(), lastName.trim(), email, password, role);
             navigate('/confirmation');
         } catch (err) {
             setErrorMsg(err.message || 'Registration failed. Please try again.');
@@ -133,6 +132,7 @@ const SignUp = () => {
                         >
                             <option value="Student">Student</option>
                             <option value="Project Owner">Project Owner</option>
+                            <option value="Teaching Staff">Teaching Staff / Tutor</option>
                             <option value="Industry Liaison">Industry Liaison</option>
                             <option value="Unit Coordinator">Unit Coordinator</option>
                         </select>
