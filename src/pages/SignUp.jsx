@@ -61,7 +61,7 @@ const SignUp = () => {
         setLoading(true);
         try {
             await registerUser(firstName.trim(), lastName.trim(), email, password, role);
-            navigate('/confirmation');
+            navigate('/confirmation', { replace: true, state: { fromSignup: true } });
         } catch (err) {
             setErrorMsg(err.message || 'Registration failed. Please try again.');
         } finally {
@@ -73,7 +73,7 @@ const SignUp = () => {
         <div className="auth-page">
             <div className="auth-card auth-card-wide">
                 <div className="auth-brand">
-                  <img src="/pictures/qut.png" alt="QUT logo" className="auth-logo-img" />
+                    <img src="/pictures/qut.png" alt="QUT logo" className="auth-logo-img" />
                 </div>
 
                 <h1 className="auth-heading">Create an account</h1>
