@@ -1,3 +1,14 @@
+/**
+ * DashboardHeader.jsx
+ *
+ * Persistent top-bar displayed on every dashboard and detail page.
+ * Shows the QUT logo, current page title, a welcome greeting, the logged-in
+ * user's display name, and a Logout button.
+ *
+ * Props:
+ *   title {string} Page title shown next to the logo (e.g. "Tutor Dashboard").
+ */
+
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser, logoutUser } from '../utils/auth';
 import { getUserDisplayName, getUserFirstName } from '../utils/roleUtils';
@@ -15,7 +26,7 @@ const DashboardHeader = ({ title }) => {
     <header className="qut-header">
       <div className="qut-header-left">
         <span className="qut-brand">
-        <img src="/pictures/qut.png" alt="QUT logo" className="qut-logo-img" />
+          <img src="/pictures/qut.png" alt="QUT logo" className="qut-logo-img" />
         </span>
         <div className="qut-header-divider" />
         <div>
