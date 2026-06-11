@@ -42,23 +42,7 @@ cd server
 npm install
 ```
 
----
 
-## Environment Variables
-
-The backend requires a `.env` file inside the `server/` directory.
-
-A `.env` file should already be present. If not, create `server/.env` with the following:
-
-```env
-# Database
-DATABASE_URL=your_supabase_connection_string
-
-# Auth
-JWT_SECRET=your_jwt_secret
-```
-
----
 
 ## Running the App
 
@@ -83,7 +67,7 @@ npm run dev
 
 The frontend will start at: `http://localhost:5173` (or the next available port)
 
----
+
 
 ## Available Scripts
 
@@ -102,7 +86,6 @@ The frontend will start at: `http://localhost:5173` (or the next available port)
 |---|---|
 | `node index.js` | Start the Express server |
 
----
 
 ## Tech Stack
 
