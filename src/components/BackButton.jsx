@@ -1,3 +1,19 @@
+/**
+ * BackButton.jsx
+ *
+ * A reusable back-navigation button used at the top of detail / form pages.
+ *
+ * Props:
+ *   to    {string}  (optional) Explicit path to navigate to. When omitted,
+ *                   the button navigates to the current user's dashboard.
+ *   label {string}  Button text. Defaults to 'Back'.
+ *
+ * Usage:
+ *   <BackButton />                          // → user's dashboard
+ *   <BackButton to="/feedback-timeline/1" /> // → specific page
+ *   <BackButton label="Return to Dashboard" />
+ */
+
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser } from '../utils/auth';
 import { roleToDashboardPath } from '../utils/roleUtils';
