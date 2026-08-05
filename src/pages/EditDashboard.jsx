@@ -3,8 +3,15 @@ import BackButton from '../components/BackButton';
 import DashboardHeader from '../components/DashboardHeader';
 import '../styles/dashboard.css';
 
+const ratingOptions = [
+  { value: '1', label: '1 - Below Expectations' },
+  { value: '2', label: '2 - Meets Expectations' },
+  { value: '3', label: '3 - Above Expectations' }
+];
+
 const EditDashboard = () => {
-  const [teamScore, setTeamScore] = useState('');
+  const [productProgressionRating, setProductProgressionRating] = useState('');
+  const [processTeamworkRating, setProcessTeamworkRating] = useState('');
   const [teamComment, setTeamComment] = useState('');
 
   const handleSubmit = (event) => {
@@ -19,39 +26,80 @@ const EditDashboard = () => {
       <main className="qut-content">
         <BackButton />
 
-        <div className="qut-spacer" />
-        <form className="qut-form-stack" onSubmit={handleSubmit}>
-          <section className="qut-card">
-            <h2>Client Feedback Editing</h2>
-            <p>Use this page for future editing workflows. Current implementation is frontend-only.</p>
-          </section>
+        <div className="feedback-form-container">
+          <div className="qut-spacer" />
 
-          <section className="qut-card">
-            <div className="qut-field">
-              <label htmlFor="editTeamScore">Team Score</label>
-              <select id="editTeamScore" className="qut-input" value={teamScore} onChange={(event) => setTeamScore(event.target.value)}>
-                <option value="">Select score</option>
-                <option value="1">1 - Poor</option>
-                <option value="2">2 - Needs improvement</option>
-                <option value="3">3 - Satisfactory</option>
-                <option value="4">4 - Good</option>
-                <option value="5">5 - Excellent</option>
-              </select>
-            </div>
-            <div className="qut-field">
-              <label htmlFor="editTeamComment">Team Comment</label>
-              <textarea
-                id="editTeamComment"
-                className="qut-textarea"
-                placeholder="Overall team comment..."
-                value={teamComment}
-                onChange={(event) => setTeamComment(event.target.value)}
-              />
-            </div>
-          </section>
+          <form className="qut-form-stack" onSubmit={handleSubmit}>
+            <section className="qut-card">
+              <h2>Client Feedback Editing</h2>
+              <p>
+                Use this page for future editing workflows. Current implementation is frontend-only.
+              </p>
+            </section>
 
-          <button type="submit" className="qut-btn qut-btn-primary">Save Changes</button>
-        </form>
+            <section className="qut-card">
+              <h2>Team Performance Ratings</h2>
+              <p>Please update one rating for each domain.</p>
+
+              <div className="qut-info-box">
+                <h3>Product &amp; Progression</h3>
+
+                <div className="qut-field">
+                  <label htmlFor="editProductProgressionRating">Rating</label>
+                  <select
+                    id="editProductProgressionRating"
+                    className="qut-input"
+                    value={productProgressionRating}
+                    onChange={(event) => setProductProgressionRating(event.target.value)}
+                  >
+                    <option value="">Select rating</option>
+                    {ratingOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="qut-info-box">
+                <h3>Process &amp; Teamwork</h3>
+
+                <div className="qut-field">
+                  <label htmlFor="editProcessTeamworkRating">Rating</label>
+                  <select
+                    id="editProcessTeamworkRating"
+                    className="qut-input"
+                    value={processTeamworkRating}
+                    onChange={(event) => setProcessTeamworkRating(event.target.value)}
+                  >
+                    <option value="">Select rating</option>
+                    {ratingOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="qut-field">
+                <label htmlFor="editTeamComment">Comments</label>
+                <textarea
+                  id="editTeamComment"
+                  className="qut-textarea"
+                  placeholder="Overall feedback comment..."
+                  value={teamComment}
+                  onChange={(event) => setTeamComment(event.target.value)}
+                />
+              </div>
+            </section>
+
+            <button type="submit" className="qut-btn qut-btn-primary">
+              Save Changes
+            </button>
+          </form>
+        </div>
       </main>
     </div>
   );

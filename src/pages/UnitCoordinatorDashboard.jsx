@@ -1,8 +1,30 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '../components/DashboardHeader';
-import { getTeams, getTeamStatus } from '../data/feedbackData';
+import { getTeams, getTeamStatus, latestFeedback } from '../data/feedbackData';
 import '../styles/dashboard.css';
+
+const ratingLabels = {
+  1: '1 - Below Expectations',
+  2: '2 - Meets Expectations',
+  3: '3 - Above Expectations'
+};
+
+const getRatingText = (rating) => {
+  if (rating === null || rating === undefined || rating === '') return 'Not recorded';
+  return ratingLabels[Number(rating)] || rating;
+};
+
+const hasDomainRatings = (feedback) => (
+  feedback?.productProgressionRating !== undefined ||
+  feedback?.processTeamworkRating !== undefined
+);
+
+const hasBelowExpectations = (feedback) => (
+  Number(feedback?.productProgressionRating) === 1 ||
+  Number(feedback?.processTeamworkRating) === 1 ||
+  (!hasDomainRatings(feedback) && Number(feedback?.teamScore) < 3)
+);
 
 const UnitCoordinatorDashboard = () => {
   const navigate = useNavigate();
@@ -13,7 +35,9 @@ const UnitCoordinatorDashboard = () => {
   const filteredTeams = useMemo(() => {
     return teams.filter((team) => {
       const status = getTeamStatus(team);
+      const latest = latestFeedback(team);
       const search = query.toLowerCase();
+
       const matchesSearch =
         team.teamName.toLowerCase().includes(search) ||
         team.projectName.toLowerCase().includes(search) ||
@@ -23,7 +47,8 @@ const UnitCoordinatorDashboard = () => {
         filter === 'all' ||
         (filter === 'recent' && status.className === 'recent') ||
         (filter === 'overdue' && status.className !== 'recent') ||
-        (filter === 'escalated' && team.escalated);
+        (filter === 'escalated' && team.escalated) ||
+        (filter === 'below' && hasBelowExpectations(latest));
 
       return matchesSearch && matchesFilter;
     });
@@ -31,6 +56,7 @@ const UnitCoordinatorDashboard = () => {
 
   const submitted = teams.filter((team) => team.feedbackHistory.length).length;
   const missing = teams.filter((team) => getTeamStatus(team).className !== 'recent').length;
+  const belowExpectationsCount = teams.filter((team) => hasBelowExpectations(latestFeedback(team))).length;
 
   return (
     <div className="qut-page">
@@ -47,13 +73,14 @@ const UnitCoordinatorDashboard = () => {
             <strong>{submitted}</strong>
           </div>
           <div className="qut-metric-item">
-            <span>Missing Feedback</span>
-            <strong>{missing}</strong>
+            <span>Needs Attention</span>
+            <strong>{missing + belowExpectationsCount}</strong>
           </div>
         </section>
 
         <div className="qut-spacer" />
         <h2 className="qut-section-heading">Search and Filters</h2>
+
         <div className="qut-toolbar">
           <input
             className="qut-input"
@@ -64,13 +91,17 @@ const UnitCoordinatorDashboard = () => {
           <button className="qut-btn qut-btn-outline" onClick={() => setFilter('all')}>All</button>
           <button className="qut-btn qut-btn-outline" onClick={() => setFilter('recent')}>Recent Feedback</button>
           <button className="qut-btn qut-btn-outline" onClick={() => setFilter('overdue')}>No Feedback 14+ Days</button>
+          <button className="qut-btn qut-btn-outline" onClick={() => setFilter('below')}>Below Expectations</button>
           <button className="qut-btn qut-btn-outline" onClick={() => setFilter('escalated')}>Escalated</button>
         </div>
 
         <h2 className="qut-section-heading">Teams List</h2>
+
         <div className="qut-list-grid">
-          {filteredTeams.map((team) => {
+          {filteredTeams.length ? filteredTeams.map((team) => {
             const status = getTeamStatus(team);
+            const latest = latestFeedback(team);
+            const belowExpectations = hasBelowExpectations(latest);
 
             return (
               <section className="qut-card qut-compact-card" key={team.id}>
@@ -79,22 +110,69 @@ const UnitCoordinatorDashboard = () => {
                   <p><strong>Client:</strong> {team.clientName}</p>
                   <p><strong>Project:</strong> {team.projectName}</p>
                   <p><strong>Last feedback:</strong> {status.lastText}</p>
+
+                  {latest ? (
+                    hasDomainRatings(latest) ? (
+                      <>
+                        <p>
+                          <strong>Product &amp; Progression:</strong>{' '}
+                          {getRatingText(latest.productProgressionRating)}
+                        </p>
+                        <p>
+                          <strong>Process &amp; Teamwork:</strong>{' '}
+                          {getRatingText(latest.processTeamworkRating)}
+                        </p>
+                      </>
+                    ) : (
+                      <p><strong>Team Score:</strong> {latest.teamScore ?? 'N/A'}</p>
+                    )
+                  ) : (
+                    <p><strong>Latest rating:</strong> No feedback submitted yet</p>
+                  )}
+
                   <span className={`qut-status ${status.className}`}>{status.label}</span>
+                  {belowExpectations && <span className="qut-status missing">Below Expectations</span>}
                   {team.escalated && <span className="qut-status missing">Escalated</span>}
                 </div>
 
                 <div className="qut-button-row">
-                  <button className="qut-btn qut-btn-outline" onClick={() => navigate(`/feedback-timeline/${team.id}`)}>View Timeline</button>
-                  <button className="qut-btn qut-btn-outline" onClick={() => alert('Contact feature placeholder.')}>Contact</button>
-                  <button className="qut-btn qut-btn-danger" onClick={() => alert('Escalated to Industry Liaison.')}>Escalate</button>
+                  <button
+                    className="qut-btn qut-btn-outline"
+                    onClick={() => navigate(`/feedback-timeline/${team.id}`)}
+                  >
+                    View Timeline
+                  </button>
+
+                  <button
+                    className="qut-btn qut-btn-outline"
+                    onClick={() => alert('Contact feature placeholder.')}
+                  >
+                    Contact
+                  </button>
+
+                  <button
+                    className="qut-btn qut-btn-danger"
+                    onClick={() => alert('Escalated to Industry Liaison.')}
+                  >
+                    Escalate
+                  </button>
                 </div>
               </section>
             );
-          })}
+          }) : (
+            <section className="qut-card">
+              <p>No teams match the current search or filter.</p>
+            </section>
+          )}
         </div>
 
         <div className="qut-button-row qut-top-gap">
-          <button className="qut-btn qut-btn-primary" onClick={() => alert('Export would download all feedback data.')}>Export All Data</button>
+          <button
+            className="qut-btn qut-btn-primary"
+            onClick={() => alert('Export would download all feedback data.')}
+          >
+            Export All Data
+          </button>
         </div>
       </main>
     </div>
