@@ -1,6 +1,12 @@
-const jwt = require('jsonwebtoken');
+const { createClient } = require('@supabase/supabase-js');
 
-const authenticateToken = (req, res, next) => {
+// Service-role client: dont never expose to the frontend.
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // get jwt token
 
@@ -8,15 +14,14 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: 'Access denied. No token provided.' });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET || 'beUoA}j}}[N?ZL7V+_Wm:4gGD8%d%)wL{qYul]o.gY_K&qnP|}N/gGQ6ufP[mO/aC5jJ<raf#S3M{:h%@;$CfJ', (err, decoded) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid or expired token.' });
-    }
+  const { data, error } = await supabase.auth.getUser(token);
 
-    // Add decoded user 
-    req.user = decoded;
-    next();
-  });
+  if (error || !data.user) {
+    return res.status(403).json({ error: 'Invalid or expired token.' });
+  }
+
+  req.user = data.user;
+  next();
 };
 
 module.exports = authenticateToken;

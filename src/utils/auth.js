@@ -1,73 +1,51 @@
-/**
- * auth.js
- *
- * Authentication utilities for PO-FES.
- *
- * Session state is stored in sessionStorage (cleared when the browser tab
- * closes) under two keys:
- *   - po_fes_current_user  JSON-serialised user object returned by the API
- *   - po_fes_token         JWT used to authenticate subsequent API requests
- *
- * NOTE: The DEFAULT_USERS array and initAuth() are legacy scaffolding from
- * the localStorage prototype. They are kept for backward compatibility but
- * are no longer used by the login / signup flows, which now call the real
- * backend API.
- */
-
-// ---------------------------------------------------------------------------
-// Legacy seed data (no longer used by login/signup — kept for reference)
-// ---------------------------------------------------------------------------
-
+// Seeding default users for login/testing
 const DEFAULT_USERS = [
-  { name: 'Project Owner User',    email: 'owner@qut.edu.au',      password: 'Password123!', role: 'Project Owner' },
-  { name: 'Student User',          email: 'student@qut.edu.au',    password: 'Password123!', role: 'Student' },
-  { name: 'Industry Liaison User', email: 'liaison@qut.edu.au',    password: 'Password123!', role: 'Industry Liaison' },
-  { name: 'Unit Coordinator User', email: 'coordinator@qut.edu.au', password: 'Password123!', role: 'Unit Coordinator' }
+  {
+    name: 'Project Owner User',
+    email: 'owner@qut.edu.au',
+    password: 'Password123!',
+    role: 'Project Owner'
+  },
+  {
+    name: 'Student User',
+    email: 'student@qut.edu.au',
+    password: 'Password123!',
+    role: 'Student'
+  },
+  {
+    name: 'Industry Liaison User',
+    email: 'liaison@qut.edu.au',
+    password: 'Password123!',
+    role: 'Industry Liaison'
+  },
+  {
+    name: 'Unit Coordinator User',
+    email: 'coordinator@qut.edu.au',
+    password: 'Password123!',
+    role: 'Unit Coordinator'
+  }
 ];
 
-/**
- * Seeds localStorage with DEFAULT_USERS if no users exist yet.
- * @deprecated No longer required now that auth goes through the backend API.
- */
+// Initialise users in localStorage if they don't exist
 export const initAuth = () => {
   if (!localStorage.getItem('po_fes_users')) {
     localStorage.setItem('po_fes_users', JSON.stringify(DEFAULT_USERS));
   }
 };
 
-// ---------------------------------------------------------------------------
-// Validation helpers
-// ---------------------------------------------------------------------------
+// Get all users
+const getUsers = () => {
+  initAuth();
+  return JSON.parse(localStorage.getItem('po_fes_users') || '[]');
+};
 
-/**
- * Returns true if the email address is syntactically valid.
- * Checks for characters before @, a domain segment, and a TLD.
- * @param {string} email
- * @returns {boolean}
- */
+// Validate email format
 export const validateEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 };
 
-/**
- * Analyses a password and returns a strength score plus user-facing feedback.
- *
- * Scoring (one point each):
- *   1. At least 8 characters
- *   2. Contains an uppercase letter
- *   3. Contains a digit
- *   4. Contains a special character (@$!%*?&)
- *
- * @param {string} password
- * @returns {{
- *   score: number,       // 0–4
- *   label: string,       // 'Weak' | 'Fair' | 'Good' | 'Strong'
- *   color: string,       // hex colour for the strength indicator
- *   feedback: string[],  // list of unmet requirements
- *   isValid: boolean     // true only when score === 4
- * }}
- */
+// Check password strength and return score/requirements met
 export const checkPasswordStrength = (password) => {
   let score = 0;
   const feedback = [];
@@ -97,10 +75,17 @@ export const checkPasswordStrength = (password) => {
   }
 
   let label = 'Weak';
-  let color = '#ef4444'; // red
-  if (score === 2) { label = 'Fair';   color = '#f59e0b'; } // amber
-  if (score === 3) { label = 'Good';   color = '#3b82f6'; } // blue
-  if (score === 4) { label = 'Strong'; color = '#10b981'; } // green
+  let color = '#ef4444'; // Red
+  if (score === 2) {
+    label = 'Fair';
+    color = '#f59e0b'; // Amber
+  } else if (score === 3) {
+    label = 'Good';
+    color = '#3b82f6'; // Blue
+  } else if (score === 4) {
+    label = 'Strong';
+    color = '#10b981'; // Green
+  }
 
   return { score, label, color, feedback, isValid: score === 4 };
 };
@@ -111,21 +96,6 @@ export const checkPasswordStrength = (password) => {
 
 const API = 'http://localhost:3001/api';
 
-// ---------------------------------------------------------------------------
-// Auth API calls
-// ---------------------------------------------------------------------------
-
-/**
- * Registers a new user via the backend API and stores the returned session.
- * Throws an Error with a user-facing message on failure.
- *
- * @param {string} firstName
- * @param {string} lastName
- * @param {string} email
- * @param {string} password
- * @param {string} role
- * @returns {Promise<Object>} The created user object (without password).
- */
 export const registerUser = async (firstName, lastName, email, password, role) => {
   const res = await fetch(`${API}/signup`, {
     method: 'POST',
@@ -134,7 +104,6 @@ export const registerUser = async (firstName, lastName, email, password, role) =
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error);
-
   sessionStorage.setItem('po_fes_current_user', JSON.stringify(data.user));
   sessionStorage.setItem('po_fes_token', data.token);
   return data.user;
@@ -156,38 +125,19 @@ export const loginUser = async (email, password) => {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error);
-
   sessionStorage.setItem('po_fes_current_user', JSON.stringify(data.user));
   sessionStorage.setItem('po_fes_token', data.token);
   return data.user;
 };
 
-// ---------------------------------------------------------------------------
-// Session helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Returns the currently logged-in user from sessionStorage, or null if no
- * session exists.
- * @returns {Object|null}
- */
 export const getCurrentUser = () => {
-  const stored = sessionStorage.getItem('po_fes_current_user');
-  return stored ? JSON.parse(stored) : null;
+  const u = sessionStorage.getItem('po_fes_current_user');
+  return u ? JSON.parse(u) : null;
 };
 
-/**
- * Clears the current session from sessionStorage.
- * Call this on logout before redirecting to /login.
- */
 export const logoutUser = () => {
   sessionStorage.removeItem('po_fes_current_user');
   sessionStorage.removeItem('po_fes_token');
 };
 
-/**
- * Returns the stored JWT, or null if the user is not logged in.
- * Pass this as a Bearer token in Authorization headers for protected routes.
- * @returns {string|null}
- */
 export const getAuthToken = () => sessionStorage.getItem('po_fes_token');
