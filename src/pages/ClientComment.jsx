@@ -1,34 +1,47 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import DashboardHeader from '../components/DashboardHeader';
-import { getCurrentUser } from '../utils/auth';
-import { getUserDisplayName } from '../utils/roleUtils';
-import { addFeedbackToTeam, getTeamById } from '../data/feedbackData';
+import { addFeedbackToTeam, getTeamById } from '../data/feedbackApi';
 import '../styles/dashboard.css';
 
 const ClientComment = () => {
   const { teamId } = useParams();
   const navigate = useNavigate();
-  const user = getCurrentUser();
-  const team = getTeamById(teamId || 1);
+  const [team, setTeam] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const [comment, setComment] = useState('');
 
-  const handleSubmit = (event) => {
+  useEffect(() => {
+    getTeamById(teamId || 1)
+      .then(setTeam)
+      .catch(() => setError('Could not load this team. Please try again.'))
+      .finally(() => setLoading(false));
+  }, [teamId]);
+  
+  const handleSubmit = async (event) => {
     event.preventDefault();
-
-    addFeedbackToTeam(team.id, {
-      type: 'Tutor Comment for Client',
-      source: 'tutor-to-client',
-      submittedBy: getUserDisplayName(user),
-      teamScore: null,
-      teamComment: 'Tutor comment for client added.',
-      commentForClient: comment,
-      individualFeedback: []
-    });
-
-    navigate(`/feedback-timeline/${team.id}`);
+    setSubmitting(true);
+    try {
+      await addFeedbackToTeam(team.id, {
+        type: 'Tutor Comment for Client',
+        source: 'tutor-to-client',
+        teamScore: null,
+        teamComment: 'Tutor comment for client added.',
+        commentForClient: comment,
+        individualFeedback: []
+      });
+      navigate(`/feedback-timeline/${team.id}`);
+    } catch (err) {
+      setError('Could not save comment. Please try again.');
+      setSubmitting(false);
+    }
   };
+
+  if (loading) return <div className="qut-page"><DashboardHeader title="Comment for Client" /><main className="qut-content"><p>Loading...</p></main></div>;
+  if (error || !team) return <div className="qut-page"><DashboardHeader title="Comment for Client" /><main className="qut-content"><p>{error || 'Team not found.'}</p></main></div>;
 
   return (
     <div className="qut-page">
@@ -59,7 +72,9 @@ const ClientComment = () => {
             </div>
           </section>
 
-          <button className="qut-btn qut-btn-primary" type="submit">Save Comment</button>
+          <button className="qut-btn qut-btn-primary" type="submit" disabled={submitting}>
+            {submitting ? 'Saving...' : 'Save Comment'}
+          </button>
         </form>
       </main>
     </div>

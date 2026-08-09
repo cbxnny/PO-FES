@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const app = express();
 app.use(cors({ origin: /^http:\/\/localhost:\d+$/ }));
 app.use(express.json());
+app.use('/api/teams', require('./routes/feedback'));
 
 
 const authenticateToken = require('./middleware/authMiddleware');
