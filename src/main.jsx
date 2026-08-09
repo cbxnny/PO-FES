@@ -4,10 +4,9 @@ import './index.css'
 import App from './App.jsx'
 import { initAuth } from './utils/auth'
 
-initAuth().finally(() => {
-  createRoot(document.getElementById('root')).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  )
-})
+initAuth();
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
