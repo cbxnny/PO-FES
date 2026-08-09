@@ -1,52 +1,57 @@
-// Seeding default users for login/testing
-const DEFAULT_USERS = [
-  {
-    name: 'Project Owner User',
-    email: 'owner@qut.edu.au',
-    password: 'Password123!',
-    role: 'Project Owner'
-  },
-  {
-    name: 'Student User',
-    email: 'student@qut.edu.au',
-    password: 'Password123!',
-    role: 'Student'
-  },
-  {
-    name: 'Industry Liaison User',
-    email: 'liaison@qut.edu.au',
-    password: 'Password123!',
-    role: 'Industry Liaison'
-  },
-  {
-    name: 'Unit Coordinator User',
-    email: 'coordinator@qut.edu.au',
-    password: 'Password123!',
-    role: 'Unit Coordinator'
-  }
-];
+/**
 
-// Initialise users in localStorage if they don't exist
-export const initAuth = () => {
-  if (!localStorage.getItem('po_fes_users')) {
-    localStorage.setItem('po_fes_users', JSON.stringify(DEFAULT_USERS));
+ *
+ * Authentication utilities for PO-FES, backed by Supabase Auth.
+ */
+
+import { supabase } from './supabaseClient';
+
+let cachedUser = null;
+
+const loadProfile = async (authUser) => {
+  if (!authUser) {
+    cachedUser = null;
+    return null;
   }
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('auth_id', authUser.id)
+    .single();
+
+  if (error) {
+    console.error('Failed to load user profile:', error.message);
+    cachedUser = null;
+    return null;
+  }
+
+  cachedUser = data;
+  return data;
 };
 
-// Get all users
-const getUsers = () => {
-  initAuth();
-  return JSON.parse(localStorage.getItem('po_fes_users') || '[]');
+supabase.auth.onAuthStateChange((_event, session) => {
+  loadProfile(session?.user ?? null);
+});
+
+/**
+ * Call once before the app renders (see main.jsx) so getCurrentUser() has
+ * data on first paint.
+ */
+export const initAuth = async () => {
+  const { data } = await supabase.auth.getSession();
+  await loadProfile(data.session?.user ?? null);
 };
 
-// Validate email format
+
+// Validation helpers 
+
+
 export const validateEmail = (email) => {
-  // Checks that email has characters before @, characters between @ and ., and characters after .
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 };
 
-// Check password strength and return score/requirements met
 export const checkPasswordStrength = (password) => {
   let score = 0;
   const feedback = [];
@@ -76,63 +81,61 @@ export const checkPasswordStrength = (password) => {
   }
 
   let label = 'Weak';
-  let color = '#ef4444'; // Red
-  if (score === 2) {
-    label = 'Fair';
-    color = '#f59e0b'; // Amber
-  } else if (score === 3) {
-    label = 'Good';
-    color = '#3b82f6'; // Blue
-  } else if (score === 4) {
-    label = 'Strong';
-    color = '#10b981'; // Green
-  }
+  let color = '#ef4444'; // red
+  if (score === 2) { label = 'Fair'; color = '#f59e0b'; } // amber
+  if (score === 3) { label = 'Good'; color = '#3b82f6'; } // blue
+  if (score === 4) { label = 'Strong'; color = '#10b981'; } // green
 
-  return {
-    score,
-    label,
-    color,
-    feedback,
-    isValid: score === 4
-  };
+  return { score, label, color, feedback, isValid: score === 4 };
 };
 
-const API = 'http://localhost:3001/api';
+// ---------------------------------------------------------------------------
+// Auth actions
+// ---------------------------------------------------------------------------
 
+/**
+ * Signs up via Supabase Auth. firstname/lastname/role are passed as user
+ * metadata and picked up by the handle_new_user() trigger, which creates
+ * the matching public.users row.
+ */
 export const registerUser = async (firstName, lastName, email, password, role) => {
-  const res = await fetch(`${API}/signup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ firstName, lastName, email, password, role })
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { firstname: firstName, lastname: lastName, phone_no: null, role }
+    }
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error);
-  sessionStorage.setItem('po_fes_current_user', JSON.stringify(data.user));
-  sessionStorage.setItem('po_fes_token', data.token);
-  return data.user;
+  if (error) throw new Error(error.message);
+
+  await loadProfile(data.user);
+  if (!cachedUser) throw new Error('Account created, but the profile row was not found yet. Try signing in.');
+  return cachedUser;
 };
 
 export const loginUser = async (email, password) => {
-  const res = await fetch(`${API}/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error);
-  sessionStorage.setItem('po_fes_current_user', JSON.stringify(data.user));
-  sessionStorage.setItem('po_fes_token', data.token);
-  return data.user;
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(error.message);
+
+  const profile = await loadProfile(data.user);
+  if (!profile) throw new Error('Signed in, but no matching profile was found.');
+  return profile;
 };
 
-export const getCurrentUser = () => {
-  const u = sessionStorage.getItem('po_fes_current_user');
-  return u ? JSON.parse(u) : null;
+export const logoutUser = async () => {
+  await supabase.auth.signOut();
+  cachedUser = null;
 };
 
-export const logoutUser = () => {
-  sessionStorage.removeItem('po_fes_current_user');
-  sessionStorage.removeItem('po_fes_token');
-};
+// ---------------------------------------------------------------------------
+// Session helpers
+// ---------------------------------------------------------------------------
 
-export const getAuthToken = () => sessionStorage.getItem('po_fes_token');
+/** Returns the cached profile row (public.users), or null if signed out. */
+export const getCurrentUser = () => cachedUser;
+
+/** Async — use when you need a fresh token for a manual fetch/header. */
+export const getAuthToken = async () => {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token || null;
+};

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { loginUser, initAuth, validateEmail } from '../utils/auth';
+import { loginUser, validateEmail } from '../utils/auth';
 import { roleToDashboardPath } from '../utils/roleUtils';
 import '../styles/dashboard.css';
 
@@ -14,10 +14,6 @@ const Login = () => {
     const [emailError, setEmailError] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
     const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-        initAuth();
-    }, []);
 
     useEffect(() => {
         if (email && !validateEmail(email)) {
@@ -51,7 +47,7 @@ const Login = () => {
         <div className="auth-page">
             <div className="auth-card">
                 <div className="auth-brand">
-                <img src="/pictures/qut.png" alt="QUT logo" className="auth-logo-img" />
+                    <img src="/pictures/qut.png" alt="QUT logo" className="auth-logo-img" />
                 </div>
 
                 <h1 className="auth-heading">Welcome back</h1>
