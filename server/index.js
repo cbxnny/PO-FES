@@ -6,7 +6,14 @@ const app = express();
 app.use(cors({ origin: /^http:\/\/localhost:\d+$/ }));
 app.use(express.json());
 
+// Initialise DB tables on startup
+require('./db');
+
 const authenticateToken = require('./middleware/authMiddleware');
+const authRoutes = require('./routes/auth');
+
+// Public auth routes
+app.use('/api', authRoutes);
 
 // Example protected route — validates a Supabase access token.
 // NOTE: any route that reads/writes app data should query through
