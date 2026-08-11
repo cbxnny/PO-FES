@@ -1,23 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import DashboardHeader from '../components/DashboardHeader';
 import { getCurrentUser } from '../utils/auth';
-import { getUserDisplayName, normalizeRole } from '../utils/roleUtils';
-import { formatDate, getTeamById, getTeamStatus, sourceClass } from '../data/feedbackData';
+import { normalizeRole } from '../utils/roleUtils';
+import { formatDate, getTeamById, getTeamStatus, sourceClass } from '../data/feedbackApi';
 import '../styles/dashboard.css';
 
-const getStudentNameForTeam = (team, user) => {
-  const displayName = getUserDisplayName(user);
-  return team.students.includes(displayName) ? displayName : team.students[0];
-};
-
-const FullSubmissionDetails = ({ feedback, user, team }) => {
+const FullSubmissionDetails = ({ feedback, user }) => {
   const role = normalizeRole(user?.role);
   const isStudent = role === 'student';
-  const studentName = getStudentNameForTeam(team, user);
   const visibleIndividualFeedback = isStudent
-    ? feedback.individualFeedback.filter((item) => item.studentName === studentName)
+    ? feedback.individualFeedback.filter((item) => item.studentId === user.id)
     : feedback.individualFeedback;
 
   return (
@@ -31,7 +25,7 @@ const FullSubmissionDetails = ({ feedback, user, team }) => {
         <div className="qut-info-box">
           <h4>Individual Student Feedback</h4>
           {visibleIndividualFeedback.map((student) => (
-            <div key={`${feedback.id}-${student.studentName}`} className="qut-student-feedback-line">
+            <div key={`${feedback.id}-${student.studentId}`} className="qut-student-feedback-line">
               <p><strong>{student.studentName}</strong></p>
               <p>Score: {student.score ?? 'N/A'}</p>
               <p>Comment: {student.comment || 'No individual comment provided.'}</p>
@@ -60,12 +54,18 @@ const FullSubmissionDetails = ({ feedback, user, team }) => {
 const FeedbackTimeline = () => {
   const { teamId } = useParams();
   const [openItems, setOpenItems] = useState([]);
+  const [team, setTeam] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const user = getCurrentUser();
-  const team = getTeamById(teamId);
-  const status = getTeamStatus(team);
-  const feedbackItems = [...team.feedbackHistory]
-    .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
 
+  useEffect(() => {
+    getTeamById(teamId)
+      .then(setTeam)
+      .catch(() => setError('Could not load this team. Please try again.'))
+      .finally(() => setLoading(false));
+  }, [teamId]);
+  
   const toggleOpen = (feedbackId) => {
     setOpenItems((current) => (
       current.includes(feedbackId)
@@ -73,6 +73,13 @@ const FeedbackTimeline = () => {
         : [...current, feedbackId]
     ));
   };
+
+  if (loading) return <div className="qut-page"><DashboardHeader title="Feedback Timeline" /><main className="qut-content"><p>Loading...</p></main></div>;
+  if (error || !team) return <div className="qut-page"><DashboardHeader title="Feedback Timeline" /><main className="qut-content"><p>{error || 'Team not found.'}</p></main></div>;
+
+  const status = getTeamStatus(team);
+  const feedbackItems = [...team.feedbackHistory]
+    .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
 
   return (
     <div className="qut-page">
@@ -110,7 +117,7 @@ const FeedbackTimeline = () => {
                   {isOpen ? 'Close Full Submission' : 'Open Full Submission'}
                 </button>
 
-                {isOpen && <FullSubmissionDetails feedback={feedback} user={user} team={team} />}
+                {isOpen && <FullSubmissionDetails feedback={feedback} user={user} />}
               </section>
             );
           }) : (

@@ -1,17 +1,30 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '../components/DashboardHeader';
-import { getTeams, getTeamStatus } from '../data/feedbackData';
+import { getTeams, getTeamStatusFromSummary } from '../data/feedbackApi';
 import '../styles/dashboard.css';
 
 const IndustryLiaisonDashboard = () => {
   const navigate = useNavigate();
-  const teams = getTeams();
-  const escalatedTeams = teams.filter((team) => team.escalated || getTeamStatus(team).className !== 'recent');
+  const [teams, setTeams] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    getTeams()
+      .then(setTeams)
+      .catch(() => setError('Could not load teams. Please try again.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="qut-page"><DashboardHeader title="Industry Liaison Dashboard" /><main className="qut-content"><p>Loading...</p></main></div>;
+  if (error) return <div className="qut-page"><DashboardHeader title="Industry Liaison Dashboard" /><main className="qut-content"><p>{error}</p></main></div>;
+
+  const escalatedTeams = teams.filter((team) => team.escalated || getTeamStatusFromSummary(team).className !== 'recent');
   const ifb398 = teams.filter((team) => team.unit === 'IFB398');
   const ifb399 = teams.filter((team) => team.unit === 'IFB399');
 
-  const missingCount = (unitTeams) => unitTeams.filter((team) => getTeamStatus(team).className !== 'recent').length;
+  const missingCount = (unitTeams) => unitTeams.filter((team) => getTeamStatusFromSummary(team).className !== 'recent').length;
   const escalatedCount = (unitTeams) => unitTeams.filter((team) => team.escalated).length;
 
   return (
@@ -22,7 +35,7 @@ const IndustryLiaisonDashboard = () => {
         <h2 className="qut-section-heading">Escalated Issues</h2>
         <div className="qut-list-grid">
           {escalatedTeams.map((team) => {
-            const status = getTeamStatus(team);
+            const status = getTeamStatusFromSummary(team);
             return (
               <section className="qut-card qut-compact-card" key={team.id}>
                 <div>

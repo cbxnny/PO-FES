@@ -1,12 +1,26 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '../components/DashboardHeader';
-import { getTeams, getTeamStatus, latestFeedback } from '../data/feedbackData';
+import { getTeams, getTeamById, getTeamStatus, latestFeedback } from '../data/feedbackApi';
 import '../styles/dashboard.css';
 
 const TutorDashboard = () => {
   const navigate = useNavigate();
-  const teams = getTeams();
+  const [teams, setTeams] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    getTeams()
+      .then((summaryTeams) => Promise.all(summaryTeams.map((t) => getTeamById(t.id))))
+      .then(setTeams)
+      .catch(() => setError('Could not load your teams. Please try again.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="qut-page"><DashboardHeader title="Tutor Dashboard" /><main className="qut-content"><p>Loading...</p></main></div>;
+  if (error) return <div className="qut-page"><DashboardHeader title="Tutor Dashboard" /><main className="qut-content"><p>{error}</p></main></div>;
+
   const attentionTeams = teams.filter((team) => {
     const status = getTeamStatus(team);
     const latest = latestFeedback(team);

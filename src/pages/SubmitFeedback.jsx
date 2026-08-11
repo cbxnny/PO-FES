@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import DashboardHeader from '../components/DashboardHeader';
-import { getCurrentUser } from '../utils/auth';
 import { getUserDisplayName } from '../utils/roleUtils';
-import { addFeedbackToTeam, getTeamById } from '../data/feedbackData';
+import { addFeedbackToTeam, getTeamById } from '../data/feedbackApi';
 import '../styles/dashboard.css';
 
 const createInitialStudentFeedback = (students) => {
@@ -17,42 +16,61 @@ const createInitialStudentFeedback = (students) => {
 const SubmitFeedback = () => {
   const { teamId } = useParams();
   const navigate = useNavigate();
-  const user = getCurrentUser();
-  const team = getTeamById(teamId || 1);
+  const [team, setTeam] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const [teamScore, setTeamScore] = useState('');
   const [teamComment, setTeamComment] = useState('');
   const [commentForTutors, setCommentForTutors] = useState('');
-  const [studentFeedback, setStudentFeedback] = useState(createInitialStudentFeedback(team.students));
+  const [studentFeedback, setStudentFeedback] = useState({});
 
-  const updateStudent = (student, field, value) => {
+  useEffect(() => {
+    getTeamById(teamId || 1)
+      .then((data) => {
+        setTeam(data);
+        setStudentFeedback(createInitialStudentFeedback(data.students));
+      })
+      .catch(() => setError('Could not load this team. Please try again.'))
+      .finally(() => setLoading(false));
+  }, [teamId]);
+
+  const updateStudent = (studentId, field, value) => {
     setStudentFeedback((current) => ({
       ...current,
-      [student]: {
-        ...current[student],
+      [studentId]: {
+        ...current[studentId],
         [field]: value
       }
     }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-
-    addFeedbackToTeam(team.id, {
-      type: 'Client Feedback',
-      source: 'client',
-      submittedBy: getUserDisplayName(user),
-      teamScore: Number(teamScore),
-      teamComment,
-      commentForTutors,
-      individualFeedback: team.students.map((student) => ({
-        studentName: student,
-        score: studentFeedback[student]?.score || null,
-        comment: studentFeedback[student]?.comment || 'No individual comment provided.'
-      }))
-    });
-
-    navigate(`/feedback-timeline/${team.id}`);
+    setSubmitting(true);
+    try {
+      await addFeedbackToTeam(team.id, {
+        type: 'Client Feedback',
+        source: 'client',
+        teamScore: Number(teamScore),
+        teamComment,
+        commentForTutors,
+        individualFeedback: team.students.map((student) => ({
+          studentId: student.id,
+          score: studentFeedback[student.id]?.score || null,
+          comment: studentFeedback[student.id]?.comment || 'No individual comment provided.'
+        }))
+      });
+      navigate(`/feedback-timeline/${team.id}`);
+    } catch (err) {
+      setError('Could not submit feedback. Please try again.');
+      setSubmitting(false);
+    }
   };
+
+  if (loading) return <div className="qut-page"><DashboardHeader title="Submit Feedback" /><main className="qut-content"><p>Loading...</p></main></div>;
+  if (error || !team) return <div className="qut-page"><DashboardHeader title="Submit Feedback" /><main className="qut-content"><p>{error || 'Team not found.'}</p></main></div>;
+
 
   return (
     <div className="qut-page">
@@ -102,16 +120,16 @@ const SubmitFeedback = () => {
             <h2>Individual Student Feedback</h2>
             <div className="qut-form-stack">
               {team.students.map((student) => (
-                <div className="qut-info-box" key={student}>
-                  <h3>{student}</h3>
+                <div className="qut-info-box" key={student.id}>
+                  <h3>{student.name}</h3>
 
                   <div className="qut-field">
-                    <label htmlFor={`score-${student}`}>Individual Score</label>
+                    <label htmlFor={`score-${student.id}`}>Individual Score</label>
                     <select
-                      id={`score-${student}`}
+                      id={`score-${student.id}`}
                       className="qut-input"
-                      value={studentFeedback[student]?.score || ''}
-                      onChange={(event) => updateStudent(student, 'score', event.target.value)}
+                      value={studentFeedback[student.id]?.score || ''}
+                      onChange={(event) => updateStudent(student.id, 'score', event.target.value)}
                     >
                       <option value="">Select score</option>
                       <option value="1">1 - Poor</option>
@@ -123,13 +141,13 @@ const SubmitFeedback = () => {
                   </div>
 
                   <div className="qut-field">
-                    <label htmlFor={`comment-${student}`}>Individual Comment</label>
+                    <label htmlFor={`comment-${student.id}`}>Individual Comment</label>
                     <textarea
-                      id={`comment-${student}`}
+                      id={`comment-${student.id}`}
                       className="qut-textarea"
-                      placeholder={`Comment for ${student}...`}
-                      value={studentFeedback[student]?.comment || ''}
-                      onChange={(event) => updateStudent(student, 'comment', event.target.value)}
+                      placeholder={`Comment for ${student.name}...`}
+                      value={studentFeedback[student.id]?.comment || ''}
+                      onChange={(event) => updateStudent(student.id, 'comment', event.target.value)}
                     />
                   </div>
                 </div>
@@ -151,7 +169,9 @@ const SubmitFeedback = () => {
             </div>
           </section>
 
-          <button className="qut-btn qut-btn-primary" type="submit">Submit Feedback</button>
+          <button className="qut-btn qut-btn-primary" type="submit" disabled={submitting}>
+            {submitting ? 'Submitting...' : 'Submit Feedback'}
+          </button>
         </form>
       </main>
     </div>

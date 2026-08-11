@@ -1,27 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import DashboardHeader from '../components/DashboardHeader';
 import { getCurrentUser } from '../utils/auth';
-import { getUserDisplayName } from '../utils/roleUtils';
-import { formatDate, getTeams, sourceClass } from '../data/feedbackData';
+import { getTeams, getTeamById, formatDate, sourceClass } from '../data/feedbackApi';
 import '../styles/dashboard.css';
 
-const getStudentTeam = (user) => {
-  const teams = getTeams();
-  const displayName = getUserDisplayName(user);
-  return teams.find((team) => team.students.includes(displayName)) || teams[0];
-};
-
-const getStudentNameForTeam = (team, user) => {
-  const displayName = getUserDisplayName(user);
-  return team.students.includes(displayName) ? displayName : team.students[0];
-};
-
-const getStudentFeedback = (team, studentName) => {
+const getStudentFeedback = (team, userId) => {
   return team.feedbackHistory
     .filter((feedback) => feedback.source === 'client' || feedback.source === 'tutor')
     .map((feedback) => ({
       ...feedback,
-      individual: feedback.individualFeedback.find((item) => item.studentName === studentName)
+      individual: feedback.individualFeedback.find((item) => item.studentId === userId)
     }))
     .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
 };
@@ -50,9 +38,28 @@ const StudentFeedbackCard = ({ feedback, team }) => (
 
 const StudentDashboard = () => {
   const user = getCurrentUser();
-  const team = getStudentTeam(user);
-  const studentName = getStudentNameForTeam(team, user);
-  const feedbackItems = getStudentFeedback(team, studentName);
+  const [team, setTeam] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    getTeams()
+      .then((teams) => {
+        if (!teams.length) {
+          setLoading(false);
+          return;
+        }
+        return getTeamById(teams[0].id).then(setTeam);
+      })
+      .catch(() => setError('Could not load your team. Please try again.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="qut-page"><DashboardHeader title="Student Dashboard" /><main className="qut-content"><p>Loading...</p></main></div>;
+  if (error) return <div className="qut-page"><DashboardHeader title="Student Dashboard" /><main className="qut-content"><p>{error}</p></main></div>;
+  if (!team) return <div className="qut-page"><DashboardHeader title="Student Dashboard" /><main className="qut-content"><p>You are not currently assigned to a team.</p></main></div>;
+
+  const feedbackItems = getStudentFeedback(team, user.id);
   const latestFeedback = feedbackItems[0];
   const previousFeedback = feedbackItems.slice(1);
 

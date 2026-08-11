@@ -1,23 +1,32 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '../components/DashboardHeader';
-import { getTeams, getTeamStatus } from '../data/feedbackData';
+import { getTeams, getTeamStatusFromSummary } from '../data/feedbackApi';
 import '../styles/dashboard.css';
 
 const UnitCoordinatorDashboard = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
-  const teams = getTeams();
+  const [teams, setTeams] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    getTeams()
+      .then(setTeams)
+      .catch(() => setError('Could not load teams. Please try again.'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filteredTeams = useMemo(() => {
     return teams.filter((team) => {
-      const status = getTeamStatus(team);
+      const status = getTeamStatusFromSummary(team);
       const search = query.toLowerCase();
       const matchesSearch =
         team.teamName.toLowerCase().includes(search) ||
         team.projectName.toLowerCase().includes(search) ||
-        team.clientName.toLowerCase().includes(search);
+        (team.clientName || '').toLowerCase().includes(search);
 
       const matchesFilter =
         filter === 'all' ||
@@ -29,8 +38,11 @@ const UnitCoordinatorDashboard = () => {
     });
   }, [filter, query, teams]);
 
-  const submitted = teams.filter((team) => team.feedbackHistory.length).length;
-  const missing = teams.filter((team) => getTeamStatus(team).className !== 'recent').length;
+  if (loading) return <div className="qut-page"><DashboardHeader title="Coordinator Dashboard" /><main className="qut-content"><p>Loading...</p></main></div>;
+  if (error) return <div className="qut-page"><DashboardHeader title="Coordinator Dashboard" /><main className="qut-content"><p>{error}</p></main></div>;
+
+  const submitted = teams.filter((team) => team.lastFeedbackAt).length;
+  const missing = teams.filter((team) => getTeamStatusFromSummary(team).className !== 'recent').length;
 
   return (
     <div className="qut-page">
@@ -70,7 +82,7 @@ const UnitCoordinatorDashboard = () => {
         <h2 className="qut-section-heading">Teams List</h2>
         <div className="qut-list-grid">
           {filteredTeams.map((team) => {
-            const status = getTeamStatus(team);
+            const status = getTeamStatusFromSummary(team);
 
             return (
               <section className="qut-card qut-compact-card" key={team.id}>
