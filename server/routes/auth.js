@@ -1,14 +1,30 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
+const pool = require('../db');
 
 const router = express.Router();
 
-// Service-role client for server-side auth operations
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Our teams/feedback tables key off users.id (integer), not Supabase's UUID,
+// so every authenticated account needs a row here linking the two.
+const syncUserRecord = async ({ authId, firstName, lastName, email, role }) => {
+  const result = await pool.query(
+    `INSERT INTO users (auth_id, firstName, lastName, email, role)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (email) DO UPDATE
+       SET auth_id = EXCLUDED.auth_id,
+           firstName = EXCLUDED.firstName,
+           lastName = EXCLUDED.lastName,
+           role = EXCLUDED.role
+     RETURNING id, role, firstName, lastName, email`,
+    [authId, firstName, lastName, email, role]
+  );
+  return result.rows[0];
+};
 /**
  * POST /api/signup
  * Body: { firstName, lastName, email, password, role }
@@ -24,25 +40,36 @@ router.post('/signup', async (req, res) => {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      data: { firstName, lastName, role }
-    }
+    options: { data: { firstName, lastName, role } }
   });
 
   if (error) {
     return res.status(400).json({ error: error.message });
   }
 
-  return res.status(201).json({
-    user: {
-      id: data.user.id,
-      email: data.user.email,
+  try {
+    const dbUser = await syncUserRecord({
+      authId: data.user.id,
       firstName,
       lastName,
+      email,
       role
-    },
-    token: data.session?.access_token ?? null
-  });
+    });
+
+    return res.status(201).json({
+      user: {
+        id: dbUser.id,
+        email: dbUser.email,
+        firstName: dbUser.firstname,
+        lastName: dbUser.lastname,
+        role: dbUser.role
+      },
+      token: data.session?.access_token ?? null
+    });
+  } catch (dbErr) {
+    console.error('SIGNUP DB SYNC ERROR:', dbErr);
+    return res.status(500).json({ error: 'Account created, but failed to save profile. Contact support.' });
+  }
 });
 
 /**
@@ -57,10 +84,7 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ error: 'Email and password are required.' });
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     return res.status(401).json({ error: error.message });
@@ -68,16 +92,31 @@ router.post('/login', async (req, res) => {
 
   const meta = data.user.user_metadata ?? {};
 
-  return res.status(200).json({
-    user: {
-      id: data.user.id,
-      email: data.user.email,
+  try {
+    // Self-heals accounts that authenticated before this sync existed,
+    // so login never 500s on a row missing auth_id.
+    const dbUser = await syncUserRecord({
+      authId: data.user.id,
       firstName: meta.firstName ?? '',
       lastName: meta.lastName ?? '',
+      email: data.user.email,
       role: meta.role ?? ''
-    },
-    token: data.session.access_token
-  });
+    });
+
+    return res.status(200).json({
+      user: {
+        id: dbUser.id,
+        email: dbUser.email,
+        firstName: dbUser.firstname,
+        lastName: dbUser.lastname,
+        role: dbUser.role
+      },
+      token: data.session.access_token
+    });
+  } catch (dbErr) {
+    console.error('LOGIN DB SYNC ERROR:', dbErr);
+    return res.status(500).json({ error: 'Login succeeded, but failed to load profile. Contact support.' });
+  }
 });
 
 module.exports = router;
