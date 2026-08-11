@@ -107,9 +107,6 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     const teamsResult = await pool.query(query, params);
-    console.log('DEBUG query:', query);
-    console.log('DEBUG params:', params);
-    console.log('DEBUG teamsResult.rows:', teamsResult.rows);
     const teamIds = teamsResult.rows.map((row) => row.team_id);
     if (teamIds.length === 0) return res.json([]);
 
