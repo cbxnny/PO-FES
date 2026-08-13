@@ -15,6 +15,7 @@ const authRoutes = require('./routes/auth');
 // Public auth routes
 app.use('/api', authRoutes);
 app.use('/api/teams', require('./routes/feedback'));
+app.use('/api/meetings', require('./routes/meetings'));
 
 // Example protected route — validates a Supabase access token.
 // NOTE: any route that reads/writes app data should query through

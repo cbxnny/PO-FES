@@ -77,6 +77,19 @@ const initDb = async () => {
         comment TEXT
       );
 
+      CREATE TABLE IF NOT EXISTS meetings (
+        meetingid BIGSERIAL PRIMARY KEY,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        team_id INTEGER REFERENCES teams(team_id) ON DELETE CASCADE,
+        client_id INTEGER REFERENCES users(id),
+        meeting_date DATE,
+        meeting_time TIME,
+        attendance VARCHAR,
+        product_progression_rating VARCHAR,
+        process_teamwork_rating VARCHAR
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_meetings_team_id ON meetings(team_id);
       CREATE INDEX IF NOT EXISTS idx_feedback_team_id ON feedback(team_id);
       CREATE INDEX IF NOT EXISTS idx_individual_feedback_feedback_id ON individual_feedback(feedback_id);
       CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON team_members(team_id);
