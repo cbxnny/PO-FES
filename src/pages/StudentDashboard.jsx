@@ -373,9 +373,14 @@ const StudentDashboard = () => {
     return (
       <div className="qut-page">
         <DashboardHeader title="Student Dashboard" />
-
         <main className="qut-content">
-          <p>Loading...</p>
+          <h2 className="qut-section-heading">Latest Feedback</h2>
+          <section className="qut-skeleton-card">
+            <span className="qut-skeleton qut-skeleton-line qut-skeleton-short" />
+            <span className="qut-skeleton qut-skeleton-line qut-skeleton-title" />
+            <span className="qut-skeleton qut-skeleton-line" />
+            <span className="qut-skeleton qut-skeleton-line qut-skeleton-short" />
+          </section>
         </main>
       </div>
     );

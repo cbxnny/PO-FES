@@ -201,9 +201,25 @@ const IndustryLiaisonDashboard = () => {
     return (
       <div className="qut-page">
         <DashboardHeader title="Industry Liaison Dashboard" />
-
         <main className="qut-content">
-          <p>Loading...</p>
+          <section className="qut-card qut-metric-strip liaison-metric-strip">
+            <div className="qut-metric-item"><span className="qut-skeleton qut-skeleton-line qut-skeleton-short" /></div>
+            <div className="qut-metric-item"><span className="qut-skeleton qut-skeleton-line qut-skeleton-short" /></div>
+            <div className="qut-metric-item"><span className="qut-skeleton qut-skeleton-line qut-skeleton-short" /></div>
+            <div className="qut-metric-item"><span className="qut-skeleton qut-skeleton-line qut-skeleton-short" /></div>
+          </section>
+
+          <div className="qut-spacer" />
+          <h2 className="qut-section-heading">Issues Requiring Follow-up</h2>
+          <div className="qut-list-grid">
+            {[0, 1].map((i) => (
+              <section className="qut-skeleton-card" key={i}>
+                <span className="qut-skeleton qut-skeleton-line qut-skeleton-title" />
+                <span className="qut-skeleton qut-skeleton-line" />
+                <span className="qut-skeleton qut-skeleton-line qut-skeleton-short" />
+              </section>
+            ))}
+          </div>
         </main>
       </div>
     );

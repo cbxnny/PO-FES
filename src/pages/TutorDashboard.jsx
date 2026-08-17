@@ -493,7 +493,27 @@ const TutorDashboard = () => {
       <div className="qut-page">
         <DashboardHeader title="Tutor Dashboard" />
         <main className="qut-content">
-          <p>Loading...</p>
+          <section className="qut-card qut-metric-strip tutor-metric-strip">
+            <div className="qut-metric-item"><span className="qut-skeleton qut-skeleton-line qut-skeleton-short" /></div>
+            <div className="qut-metric-item"><span className="qut-skeleton qut-skeleton-line qut-skeleton-short" /></div>
+            <div className="qut-metric-item"><span className="qut-skeleton qut-skeleton-line qut-skeleton-short" /></div>
+          </section>
+
+          <div className="qut-spacer" />
+          <h2 className="qut-section-heading">Assigned Teams</h2>
+          <div className="qut-compact-grid">
+            {[0, 1].map((i) => (
+              <section className="qut-skeleton-card" key={i}>
+                <span className="qut-skeleton qut-skeleton-line qut-skeleton-title" />
+                <span className="qut-skeleton qut-skeleton-line" />
+                <span className="qut-skeleton qut-skeleton-line qut-skeleton-short" />
+                <div className="qut-skeleton-buttons">
+                  <span className="qut-skeleton qut-skeleton-btn" />
+                  <span className="qut-skeleton qut-skeleton-btn" />
+                </div>
+              </section>
+            ))}
+          </div>
         </main>
       </div>
     );

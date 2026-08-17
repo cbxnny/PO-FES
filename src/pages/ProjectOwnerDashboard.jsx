@@ -370,7 +370,20 @@ const ProjectOwnerDashboard = () => {
       <div className="qut-page">
         <DashboardHeader title="Client Dashboard" />
         <main className="qut-content">
-          <p>Loading...</p>
+          <h2 className="qut-section-heading">Your Teams</h2>
+          <div className="qut-compact-grid">
+            {[0, 1].map((i) => (
+              <section className="qut-skeleton-card" key={i}>
+                <span className="qut-skeleton qut-skeleton-line qut-skeleton-title" />
+                <span className="qut-skeleton qut-skeleton-line" />
+                <span className="qut-skeleton qut-skeleton-line qut-skeleton-short" />
+                <div className="qut-skeleton-buttons">
+                  <span className="qut-skeleton qut-skeleton-btn" />
+                  <span className="qut-skeleton qut-skeleton-btn" />
+                </div>
+              </section>
+            ))}
+          </div>
         </main>
       </div>
     );
