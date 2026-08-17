@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '../components/DashboardHeader';
 import { getTeams, getTeamStatusFromSummary } from '../data/feedbackApi';
 import '../styles/dashboard.css';
+import { SkeletonGrid } from '../components/SkeletonCard';
 
 const IndustryLiaisonDashboard = () => {
   const navigate = useNavigate();
@@ -17,7 +18,15 @@ const IndustryLiaisonDashboard = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="qut-page"><DashboardHeader title="Industry Liaison Dashboard" /><main className="qut-content"><p>Loading...</p></main></div>;
+  if (loading) return (
+    <div className="qut-page">
+      <DashboardHeader title="Industry Liaison Dashboard" />
+      <main className="qut-content">
+        <h2 className="qut-section-heading">Escalated Issues</h2>
+        <SkeletonGrid count={2} variant="team" gridClass="qut-list-grid" />
+      </main>
+    </div>
+  );
   if (error) return <div className="qut-page"><DashboardHeader title="Industry Liaison Dashboard" /><main className="qut-content"><p>{error}</p></main></div>;
 
   const escalatedTeams = teams.filter((team) => team.escalated || getTeamStatusFromSummary(team).className !== 'recent');

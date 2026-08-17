@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '../components/DashboardHeader';
 import { getTeams, getTeamById, getTeamStatus, latestFeedback } from '../data/feedbackApi';
 import '../styles/dashboard.css';
+import { SkeletonGrid } from '../components/SkeletonCard';
 
 const TutorDashboard = () => {
   const navigate = useNavigate();
@@ -18,7 +19,21 @@ const TutorDashboard = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="qut-page"><DashboardHeader title="Tutor Dashboard" /><main className="qut-content"><p>Loading...</p></main></div>;
+  if (loading) return (
+    <div className="qut-page">
+      <DashboardHeader title="Tutor Dashboard" />
+      <main className="qut-content">
+        <section className="qut-card qut-metric-strip">
+          <div className="qut-metric-item"><span className="qut-skeleton qut-skeleton-line qut-skeleton-short" /></div>
+          <div className="qut-metric-item"><span className="qut-skeleton qut-skeleton-line qut-skeleton-short" /></div>
+          <div className="qut-metric-item"><span className="qut-skeleton qut-skeleton-line qut-skeleton-short" /></div>
+        </section>
+        <div className="qut-spacer" />
+        <h2 className="qut-section-heading">Assigned Teams</h2>
+        <SkeletonGrid count={2} variant="team" gridClass="qut-team-grid" />
+      </main>
+    </div>
+  );
   if (error) return <div className="qut-page"><DashboardHeader title="Tutor Dashboard" /><main className="qut-content"><p>{error}</p></main></div>;
 
   const attentionTeams = teams.filter((team) => {

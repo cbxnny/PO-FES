@@ -4,6 +4,7 @@ import BackButton from '../components/BackButton';
 import DashboardHeader from '../components/DashboardHeader';
 import { addFeedbackToTeam, getTeamById } from '../data/feedbackApi';
 import '../styles/dashboard.css';
+import { SkeletonGrid } from '../components/SkeletonCard';
 
 const createInitialStudentFeedback = (students) => {
   return students.reduce((acc, student) => {
@@ -65,7 +66,20 @@ const TutorFeedback = () => {
     }
   };
 
-  if (loading) return <div className="qut-page"><DashboardHeader title="Send Tutor Feedback" /><main className="qut-content"><p>Loading...</p></main></div>;
+  if (loading) return (
+    <div className="qut-page">
+      <DashboardHeader title="Send Tutor Feedback" />
+      <main className="qut-content">
+        <BackButton />
+        <div className="qut-spacer" />
+        <section className="qut-skeleton-card">
+          <span className="qut-skeleton qut-skeleton-line qut-skeleton-title" />
+          <span className="qut-skeleton qut-skeleton-line" />
+          <span className="qut-skeleton qut-skeleton-line qut-skeleton-short" />
+        </section>
+      </main>
+    </div>
+  );
   if (error || !team) return <div className="qut-page"><DashboardHeader title="Send Tutor Feedback" /><main className="qut-content"><p>{error || 'Team not found.'}</p></main></div>;
 
   return (

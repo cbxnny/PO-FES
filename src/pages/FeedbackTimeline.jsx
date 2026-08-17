@@ -6,6 +6,7 @@ import { getCurrentUser } from '../utils/auth';
 import { normalizeRole } from '../utils/roleUtils';
 import { formatDate, getTeamById, getTeamStatus, sourceClass } from '../data/feedbackApi';
 import '../styles/dashboard.css';
+import { SkeletonGrid } from '../components/SkeletonCard';
 
 const FullSubmissionDetails = ({ feedback, user }) => {
   const role = normalizeRole(user?.role);
@@ -74,7 +75,21 @@ const FeedbackTimeline = () => {
     ));
   };
 
-  if (loading) return <div className="qut-page"><DashboardHeader title="Feedback Timeline" /><main className="qut-content"><p>Loading...</p></main></div>;
+  if (loading) return (
+    <div className="qut-page">
+      <DashboardHeader title="Feedback Timeline" />
+      <main className="qut-content">
+        <section className="qut-skeleton-card" style={{ marginBottom: 22 }}>
+          <span className="qut-skeleton qut-skeleton-line qut-skeleton-title" />
+          <span className="qut-skeleton qut-skeleton-line" />
+          <span className="qut-skeleton qut-skeleton-line qut-skeleton-short" />
+        </section>
+        <h2 className="qut-section-heading">Feedback Timeline</h2>
+        <SkeletonGrid count={2} variant="feedback" gridClass="qut-list-grid" />
+      </main>
+    </div>
+  );
+
   if (error || !team) return <div className="qut-page"><DashboardHeader title="Feedback Timeline" /><main className="qut-content"><p>{error || 'Team not found.'}</p></main></div>;
 
   const status = getTeamStatus(team);

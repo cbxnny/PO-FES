@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '../components/DashboardHeader';
 import { formatDate, getTeams, getTeamStatusFromSummary } from '../data/feedbackApi';
 import '../styles/dashboard.css';
+import { SkeletonGrid } from '../components/SkeletonCard';
 
 const ProjectOwnerDashboard = () => {
   const navigate = useNavigate();
@@ -17,7 +18,16 @@ const ProjectOwnerDashboard = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="qut-page"><DashboardHeader title="Client Dashboard" /><main className="qut-content"><p>Loading...</p></main></div>;
+  if (loading) return (
+    <div className="qut-page">
+      <DashboardHeader title="Client Dashboard" />
+      <main className="qut-content">
+        <h2 className="qut-section-heading">Your Teams</h2>
+        <SkeletonGrid count={3} variant="team" gridClass="qut-compact-grid" />
+      </main>
+    </div>
+  );
+  
   if (error) return <div className="qut-page"><DashboardHeader title="Client Dashboard" /><main className="qut-content"><p>{error}</p></main></div>;
 
   return (

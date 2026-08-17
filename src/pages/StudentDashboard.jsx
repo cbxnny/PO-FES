@@ -3,6 +3,7 @@ import DashboardHeader from '../components/DashboardHeader';
 import { getCurrentUser } from '../utils/auth';
 import { getTeams, getTeamById, formatDate, sourceClass } from '../data/feedbackApi';
 import '../styles/dashboard.css';
+import { SkeletonGrid } from '../components/SkeletonCard';
 
 const getStudentFeedback = (team, userId) => {
   return team.feedbackHistory
@@ -55,7 +56,15 @@ const StudentDashboard = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="qut-page"><DashboardHeader title="Student Dashboard" /><main className="qut-content"><p>Loading...</p></main></div>;
+  if (loading) return (
+    <div className="qut-page">
+      <DashboardHeader title="Student Dashboard" />
+      <main className="qut-content">
+        <h2 className="qut-section-heading">Latest Feedback</h2>
+        <SkeletonGrid count={1} variant="feedback" gridClass="qut-list-grid" />
+      </main>
+    </div>
+  );
   if (error) return <div className="qut-page"><DashboardHeader title="Student Dashboard" /><main className="qut-content"><p>{error}</p></main></div>;
   if (!team) return <div className="qut-page"><DashboardHeader title="Student Dashboard" /><main className="qut-content"><p>You are not currently assigned to a team.</p></main></div>;
 

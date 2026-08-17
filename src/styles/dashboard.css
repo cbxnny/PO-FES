@@ -697,6 +697,71 @@ p {
   margin: 16px auto;
 }
 
+/* Skeleton loading states */
+@keyframes qut-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.qut-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--qut-surface-2) 0%,
+    #eef1f6 50%,
+    var(--qut-surface-2) 100%
+  );
+  background-size: 800px 100%;
+  animation: qut-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+  display: block;
+}
+
+.qut-skeleton-card {
+  background: var(--qut-surface);
+  border: 1px solid var(--qut-border);
+  border-radius: var(--qut-radius);
+  padding: 20px;
+  box-shadow: var(--qut-shadow);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.qut-skeleton-line {
+  height: 14px;
+  margin-bottom: 10px;
+}
+
+.qut-skeleton-line.qut-skeleton-title {
+  height: 20px;
+  width: 55%;
+  margin-bottom: 14px;
+}
+
+.qut-skeleton-line.qut-skeleton-short {
+  width: 40%;
+}
+
+.qut-skeleton-line.qut-skeleton-badge {
+  height: 22px;
+  width: 120px;
+  border-radius: 999px;
+  margin-top: 8px;
+}
+
+.qut-skeleton-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.qut-skeleton-btn {
+  height: 38px;
+  width: 110px;
+  border-radius: 9px;
+}
+
 @media (max-width: 900px) {
   .qut-compact-grid,
   .qut-team-grid,

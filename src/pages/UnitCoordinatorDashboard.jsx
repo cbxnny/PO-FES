@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '../components/DashboardHeader';
 import { getTeams, getTeamStatusFromSummary } from '../data/feedbackApi';
 import '../styles/dashboard.css';
+import { SkeletonGrid } from '../components/SkeletonCard';
 
 const UnitCoordinatorDashboard = () => {
   const navigate = useNavigate();
@@ -38,7 +39,21 @@ const UnitCoordinatorDashboard = () => {
     });
   }, [filter, query, teams]);
 
-  if (loading) return <div className="qut-page"><DashboardHeader title="Coordinator Dashboard" /><main className="qut-content"><p>Loading...</p></main></div>;
+  if (loading) return (
+    <div className="qut-page">
+      <DashboardHeader title="Coordinator Dashboard" />
+      <main className="qut-content">
+        <section className="qut-card qut-metric-strip">
+          <div className="qut-metric-item"><span className="qut-skeleton qut-skeleton-line qut-skeleton-short" /></div>
+          <div className="qut-metric-item"><span className="qut-skeleton qut-skeleton-line qut-skeleton-short" /></div>
+          <div className="qut-metric-item"><span className="qut-skeleton qut-skeleton-line qut-skeleton-short" /></div>
+        </section>
+        <div className="qut-spacer" />
+        <h2 className="qut-section-heading">Teams List</h2>
+        <SkeletonGrid count={4} variant="team" gridClass="qut-list-grid" />
+      </main>
+    </div>
+  );
   if (error) return <div className="qut-page"><DashboardHeader title="Coordinator Dashboard" /><main className="qut-content"><p>{error}</p></main></div>;
 
   const submitted = teams.filter((team) => team.lastFeedbackAt).length;
