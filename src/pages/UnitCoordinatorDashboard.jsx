@@ -13,6 +13,7 @@ import {
 } from '../data/meetingsApi';
 import '../styles/dashboard.css';
 import { SkeletonGrid } from '../components/SkeletonCard';
+import BulkImportModal from '../components/BulkImportModal';
 
 const ratingLabels = {
   1: 'Below Expectations',
@@ -157,6 +158,7 @@ const UnitCoordinatorDashboard = () => {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
     getTeams()
@@ -440,8 +442,19 @@ const UnitCoordinatorDashboard = () => {
           >
             Export Summary CSV
           </button>
+
+          <button
+            className="qut-btn qut-btn-outline"
+            onClick={() => setShowImportModal(true)}
+          >
+            Import Accounts
+          </button>
         </div>
       </main>
+
+      {showImportModal && (
+        <BulkImportModal onClose={() => setShowImportModal(false)} />
+      )}
     </div>
   );
 };
