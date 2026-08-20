@@ -697,6 +697,71 @@ p {
   margin: 16px auto;
 }
 
+/* Skeleton loading states */
+@keyframes qut-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.qut-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--qut-surface-2) 0%,
+    #eef1f6 50%,
+    var(--qut-surface-2) 100%
+  );
+  background-size: 800px 100%;
+  animation: qut-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+  display: block;
+}
+
+.qut-skeleton-card {
+  background: var(--qut-surface);
+  border: 1px solid var(--qut-border);
+  border-radius: var(--qut-radius);
+  padding: 20px;
+  box-shadow: var(--qut-shadow);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.qut-skeleton-line {
+  height: 14px;
+  margin-bottom: 10px;
+}
+
+.qut-skeleton-line.qut-skeleton-title {
+  height: 20px;
+  width: 55%;
+  margin-bottom: 14px;
+}
+
+.qut-skeleton-line.qut-skeleton-short {
+  width: 40%;
+}
+
+.qut-skeleton-line.qut-skeleton-badge {
+  height: 22px;
+  width: 120px;
+  border-radius: 999px;
+  margin-top: 8px;
+}
+
+.qut-skeleton-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.qut-skeleton-btn {
+  height: 38px;
+  width: 110px;
+  border-radius: 9px;
+}
+
 @media (max-width: 900px) {
   .qut-compact-grid,
   .qut-team-grid,
@@ -734,6 +799,866 @@ p {
   }
 
   .auth-name-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.feedback-form-container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.feedback-form-container .qut-card {
+  width: 100%;
+}
+
+.feedback-form-stack {
+  width: 100%;
+  max-width: 900px;
+}
+
+.feedback-hero-card {
+  padding: 22px 26px;
+}
+
+.feedback-hero-card h2 {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.feedback-hero-card p {
+  margin: 8px 0;
+  color: var(--qut-text-muted);
+  line-height: 1.5;
+}
+
+.feedback-meta-inline {
+  display: flex;
+  justify-content: center;
+  gap: 42px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  color: var(--qut-text-muted);
+}
+
+.feedback-divider {
+  height: 1px;
+  background: var(--qut-border);
+  margin: 18px 0;
+}
+
+.feedback-two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.feedback-attendance-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 22px;
+  margin-bottom: 10px;
+}
+
+.feedback-attendance-header h3 {
+  margin: 0;
+}
+
+.feedback-all-attended {
+  font-weight: 700;
+  color: var(--qut-text);
+  background: #ffffff;
+  border: 1px solid var(--qut-border);
+  border-radius: 999px;
+  padding: 8px 12px;
+}
+
+.feedback-student-list {
+  display: grid;
+  gap: 10px;
+}
+
+.feedback-student-row {
+  border: 1px solid var(--qut-border);
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.feedback-student-topline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+}
+
+.feedback-student-present {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--qut-text);
+}
+
+.feedback-student-present span {
+  min-width: 0;
+}
+
+.feedback-individual-panel {
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--qut-border);
+  background: var(--qut-surface-2);
+}
+
+.feedback-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.feedback-heading-row h2 {
+  margin-bottom: 4px;
+}
+
+.feedback-heading-row p {
+  margin: 0;
+}
+
+.feedback-criteria-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--qut-border);
+  background: #ffffff;
+  color: var(--qut-text);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.feedback-criteria-button span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--qut-text);
+  color: var(--qut-text);
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.feedback-criteria-button:hover {
+  border-color: var(--qut-text);
+  background: var(--qut-surface-2);
+}
+
+.feedback-textarea-small {
+  min-height: 72px;
+}
+
+.feedback-submit-btn {
+  align-self: stretch;
+  width: 100%;
+  min-height: 48px;
+  font-size: 15px;
+}
+
+.feedback-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 999;
+}
+
+.feedback-modal-card {
+  width: 100%;
+  max-width: 680px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+  padding: 20px;
+}
+
+.feedback-modal-card-wide {
+  max-width: 1050px;
+}
+
+.feedback-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.feedback-modal-header h2 {
+  margin: 0;
+}
+
+.feedback-modal-close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--qut-border);
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--qut-text);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.feedback-modal-close:hover {
+  background: var(--qut-surface-2);
+}
+
+.feedback-modal-body {
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.feedback-modal-body p {
+  color: var(--qut-text-muted);
+  line-height: 1.5;
+}
+
+.feedback-criteria-table {
+  font-size: 14px;
+}
+
+.feedback-criteria-table th {
+  text-align: center;
+  color: var(--qut-text);
+  background: var(--qut-surface-2);
+}
+
+.feedback-criteria-table td:first-child {
+  width: 18%;
+}
+
+@media (max-width: 750px) {
+  .feedback-meta-inline,
+  .feedback-attendance-header,
+  .feedback-heading-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .feedback-two-column,
+  .feedback-student-topline {
+    grid-template-columns: 1fr;
+  }
+
+  .feedback-submit-btn {
+    width: 100%;
+  }
+
+  .feedback-modal-card {
+    padding: 16px;
+  }
+}
+
+.student-feedback-card {
+  padding: 1.25rem;
+}
+
+.student-feedback-card .qut-feedback-topline {
+  margin-bottom: 1rem;
+}
+
+.student-feedback-summary-grid,
+.student-feedback-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 1.5rem;
+  align-items: start;
+}
+
+.student-feedback-summary-col,
+.student-feedback-details-grid .qut-info-box {
+  min-width: 0;
+}
+
+.student-feedback-summary-col p,
+.student-feedback-details-grid .qut-info-box p,
+.student-feedback-card p {
+  margin-bottom: 0.6rem;
+}
+
+.student-feedback-summary-col p:last-child,
+.student-feedback-details-grid .qut-info-box p:last-child {
+  margin-bottom: 0;
+}
+
+.student-feedback-btn {
+  margin-top: 1rem;
+}
+
+.student-feedback-card-open .student-feedback-btn {
+  margin-bottom: 1rem;
+}
+
+.student-feedback-card .qut-info-box {
+  height: 100%;
+}
+
+.student-feedback-card .qut-details-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.student-feedback-card .qut-list-grid {
+  align-items: stretch;
+}
+
+@media (max-width: 900px) {
+  .student-feedback-summary-grid,
+  .student-feedback-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.qut-list-grid .student-feedback-summary-grid,
+.qut-list-grid .student-feedback-details-grid {
+  grid-template-columns: 1fr;
+}
+
+.qut-list-grid .student-feedback-card {
+  padding: 1.15rem;
+}
+
+.qut-list-grid .student-feedback-card .qut-feedback-topline {
+  align-items: flex-start;
+  gap: 8px;
+}
+
+
+.qut-list-grid .student-feedback-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.qut-list-grid .student-feedback-card .qut-info-box {
+  height: auto;
+}
+
+.student-feedback-compact-summary {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.student-feedback-team-project-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.student-feedback-team-project-row p,
+.student-feedback-full-line {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.student-feedback-full-line {
+  margin-top: 0.5rem;
+}
+
+.student-feedback-full-line strong,
+.student-feedback-team-project-row strong {
+  color: var(--qut-text);
+}
+
+@media (max-width: 700px) {
+  .student-feedback-team-project-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.student-feedback-card .qut-feedback-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.student-feedback-card .qut-status {
+  margin-top: 0;
+}
+
+.student-feedback-card .qut-date-text {
+  width: auto;
+  margin-left: auto;
+  text-align: right;
+  display: flex;
+  align-items: center;
+}
+
+.qut-list-grid .student-feedback-card .qut-status {
+  margin-top: 0;
+}
+
+.qut-list-grid .student-feedback-card .qut-date-text {
+  width: auto;
+  margin-left: auto;
+  text-align: right;
+}
+
+@media (max-width: 700px) {
+  .student-feedback-card .qut-date-text,
+  .qut-list-grid .student-feedback-card .qut-date-text {
+    width: 100%;
+    margin-left: 0;
+    text-align: left;
+  }
+}
+
+/* -------------------------------------------------------
+   Feedback/timeline card button sizing
+------------------------------------------------------- */
+
+.qut-feedback-card .student-feedback-btn,
+.qut-feedback-card > .qut-btn.qut-btn-outline {
+  width: 100%;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 1rem;
+}
+
+/* -------------------------------------------------------
+   Client dashboard team cards
+   These will apply after we add these classes in ProjectOwnerDashboard.jsx
+------------------------------------------------------- */
+
+.client-team-card {
+  position: relative;
+  max-width: 520px;
+  padding: 1.35rem 1.5rem;
+}
+
+.client-team-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.client-team-card-header h3 {
+  margin-bottom: 0;
+}
+
+.client-team-card-header .qut-status {
+  margin-top: 0;
+  margin-right: 0;
+  flex-shrink: 0;
+}
+
+.client-team-card p {
+  margin-bottom: 0.55rem;
+}
+
+.client-team-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.client-team-actions .qut-btn {
+  width: 100%;
+  min-height: 44px;
+}
+
+/* Latest feedback / tutor comment dashboard cards */
+.client-dashboard-card-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.client-dashboard-card-actions .qut-btn {
+  width: 100%;
+  justify-content: center;
+  min-height: 44px;
+}
+
+@media (max-width: 700px) {
+  .timeline-team-card-header,
+  .client-team-card-header {
+    flex-direction: column;
+  }
+
+  .timeline-team-details,
+  .client-team-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-team-card,
+  .client-team-card {
+    max-width: 100%;
+  }
+}
+
+/* -------------------------------------------------------
+   Timeline page team overview card
+------------------------------------------------------- */
+
+.timeline-team-card {
+  width: 100%;
+  max-width: none;
+  padding: 1.35rem 1.5rem;
+}
+
+.timeline-team-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.timeline-team-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline-team-card-header h2 {
+  margin: 0 0 0.9rem 0;
+}
+
+.timeline-team-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.timeline-team-meta p {
+  margin: 0;
+}
+
+.timeline-team-members-inline {
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--qut-border);
+}
+
+.timeline-team-members-inline p {
+  margin: 0;
+}
+
+.timeline-team-card-header .qut-status {
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+/* mobile */
+@media (max-width: 700px) {
+  .timeline-team-card-header {
+    flex-direction: column;
+  }
+
+  .timeline-team-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -------------------------------------------------------
+   Fix dashboard feedback/comment card buttons
+------------------------------------------------------- */
+
+/* -------------------------------------------------------
+   Fix dashboard feedback/comment card buttons
+------------------------------------------------------- */
+
+.qut-feedback-card .qut-button-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  align-items: stretch;
+}
+
+.qut-feedback-card .qut-button-row .qut-btn {
+  width: 100%;
+  justify-content: center;
+  min-height: 42px;
+  margin-top: 0;
+}
+
+.qut-feedback-card .qut-button-row .student-feedback-btn,
+.student-feedback-card-open .qut-button-row .student-feedback-btn {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* -------------------------------------------------------
+   Tutor dashboard cleanup
+------------------------------------------------------- */
+
+.tutor-metric-strip .qut-metric-item {
+  text-align: center;
+}
+
+.tutor-metric-strip .qut-metric-item span {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--qut-text);
+  font-weight: 500;
+}
+
+.tutor-metric-strip .qut-metric-item strong {
+  color: var(--qut-text);
+}
+
+.tutor-alert-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+}
+
+.tutor-alert-item .qut-btn {
+  min-height: 36px;
+  padding: 8px 12px;
+}
+
+.tutor-team-card {
+  width: 100%;
+  max-width: none;
+  padding: 1.35rem 1.5rem;
+}
+
+.tutor-team-card .qut-status {
+  margin-top: 0;
+  margin-right: 0;
+  flex-shrink: 0;
+}
+
+.tutor-team-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.tutor-team-actions .qut-btn {
+  width: 100%;
+  min-height: 44px;
+  justify-content: center;
+}
+
+.tutor-team-actions .tutor-comment-action {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 700px) {
+  .tutor-alert-item {
+    grid-template-columns: 1fr;
+  }
+
+
+  .tutor-team-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .tutor-team-actions .tutor-comment-action {
+    grid-column: auto;
+  }
+}
+
+/* -------------------------------------------------------
+   Tutor comment modal
+------------------------------------------------------- */
+
+.tutor-comment-modal {
+  max-width: 560px;
+}
+
+.tutor-comment-modal-subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--qut-text-muted);
+  font-weight: 700;
+}
+
+.tutor-comment-modal-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.tutor-comment-modal-textarea {
+  min-height: 130px;
+}
+
+.tutor-comment-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.tutor-comment-modal-actions .qut-btn {
+  width: 100%;
+  min-height: 42px;
+}
+
+@media (max-width: 700px) {
+  .tutor-comment-modal-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -------------------------------------------------------
+   Unit Coordinator dashboard cleanup
+------------------------------------------------------- */
+
+.coordinator-metric-strip .qut-metric-item {
+  text-align: center;
+}
+
+.coordinator-metric-strip .qut-metric-item span {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--qut-text);
+  font-weight: 800;
+}
+
+.coordinator-metric-strip .qut-metric-item strong {
+  color: var(--qut-text);
+}
+
+.coordinator-toolbar {
+  align-items: stretch;
+}
+
+.coordinator-toolbar .qut-input {
+  min-width: 260px;
+}
+
+.coordinator-toolbar .qut-btn {
+  min-height: 42px;
+}
+
+.coordinator-team-card {
+  padding: 1.35rem 1.5rem;
+}
+
+.coordinator-team-card .qut-status {
+  margin-top: 0;
+  margin-right: 0;
+  flex-shrink: 0;
+}
+
+.coordinator-attention-line {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--qut-border);
+}
+
+.coordinator-team-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.coordinator-team-actions .qut-btn {
+  width: 100%;
+  min-height: 44px;
+  justify-content: center;
+}
+
+@media (max-width: 700px) {
+  .coordinator-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .coordinator-toolbar .qut-input {
+    min-width: 0;
+  }
+
+  .coordinator-team-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -------------------------------------------------------
+   Industry Liaison dashboard cleanup
+------------------------------------------------------- */
+
+.liaison-metric-strip .qut-metric-item {
+  text-align: center;
+}
+
+.liaison-metric-strip .qut-metric-item span {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--qut-text);
+  font-weight: 800;
+}
+
+.liaison-metric-strip .qut-metric-item strong {
+  color: var(--qut-text);
+}
+
+.liaison-issue-card {
+  padding: 1.35rem 1.5rem;
+}
+
+.liaison-issue-card .qut-status {
+  margin-top: 0;
+  margin-right: 0;
+  flex-shrink: 0;
+}
+
+.liaison-reason-line {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--qut-border);
+}
+
+.liaison-reviewed-line {
+  margin-top: 0.75rem;
+  font-weight: 700;
+  color: var(--qut-text-muted);
+}
+
+.liaison-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.liaison-card-actions .qut-btn {
+  width: 100%;
+  min-height: 44px;
+  justify-content: center;
+}
+
+@media (max-width: 700px) {
+  .liaison-card-actions {
     grid-template-columns: 1fr;
   }
 }

@@ -28,37 +28,28 @@ const buildTeamResponse = async (teamRow) => {
     pool.query(
       `SELECT f.feedback_id, f.type, f.source, f.team_score, f.team_comment,
               f.comment_for_tutors, f.comment_for_client, f.submitted_at,
-              u.firstname || ' ' || u.lastname AS submitted_by
+              u.firstname || ' ' || u.lastname AS submitted_by,
+              COALESCE(
+                json_agg(
+                  json_build_object(
+                    'studentId', ind.student_id,
+                    'studentName', su.firstname || ' ' || su.lastname,
+                    'score', ind.score,
+                    'comment', ind.comment
+                  )
+                ) FILTER (WHERE ind.id IS NOT NULL),
+                '[]'
+              ) AS individual_feedback
        FROM feedback f
        LEFT JOIN users u ON f.submitted_by = u.id
+       LEFT JOIN individual_feedback ind ON ind.feedback_id = f.feedback_id
+       LEFT JOIN users su ON ind.student_id = su.id
        WHERE f.team_id = $1
+       GROUP BY f.feedback_id, u.firstname, u.lastname
        ORDER BY f.submitted_at DESC`,
       [teamRow.team_id]
     )
   ]);
-
-  const feedbackIds = feedbackResult.rows.map((row) => row.feedback_id);
-  let individualByFeedbackId = {};
-  if (feedbackIds.length > 0) {
-    const individualResult = await pool.query(
-      `SELECT ind.feedback_id, ind.student_id, u.firstname || ' ' || u.lastname AS student_name,
-              ind.score, ind.comment
-       FROM individual_feedback ind
-       JOIN users u ON ind.student_id = u.id
-       WHERE ind.feedback_id = ANY($1)`,
-      [feedbackIds]
-    );
-    individualByFeedbackId = individualResult.rows.reduce((acc, row) => {
-      if (!acc[row.feedback_id]) acc[row.feedback_id] = [];
-      acc[row.feedback_id].push({
-        studentId: row.student_id,
-        studentName: row.student_name,
-        score: row.score !== null ? Number(row.score) : null,
-        comment: row.comment
-      });
-      return acc;
-    }, {});
-  }
 
   const feedbackHistory = feedbackResult.rows.map((fb) => ({
     id: fb.feedback_id,
@@ -70,7 +61,10 @@ const buildTeamResponse = async (teamRow) => {
     teamComment: fb.team_comment,
     commentForTutors: fb.comment_for_tutors,
     commentForClient: fb.comment_for_client,
-    individualFeedback: individualByFeedbackId[fb.feedback_id] || []
+    individualFeedback: fb.individual_feedback.map((item) => ({
+      ...item,
+      score: item.score !== null ? Number(item.score) : null
+    }))
   }));
 
   return {
@@ -142,11 +136,77 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.get('/:teamId', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query(`${TEAM_BASE_QUERY} WHERE t.team_id = $1`, [req.params.teamId]);
-    if (result.rows.length === 0) {
+    const teamId = req.params.teamId;
+
+    const [teamResult, studentsResult, feedbackResult] = await Promise.all([
+      pool.query(`${TEAM_BASE_QUERY} WHERE t.team_id = $1`, [teamId]),
+      pool.query(
+        `SELECT u.id, u.firstname || ' ' || u.lastname AS name
+         FROM team_members tm
+         JOIN users u ON tm.user_id = u.id
+         WHERE tm.team_id = $1`,
+        [teamId]
+      ),
+      pool.query(
+        `SELECT f.feedback_id, f.type, f.source, f.team_score, f.team_comment,
+                f.comment_for_tutors, f.comment_for_client, f.submitted_at,
+                u.firstname || ' ' || u.lastname AS submitted_by,
+                COALESCE(
+                  json_agg(
+                    json_build_object(
+                      'studentId', ind.student_id,
+                      'studentName', su.firstname || ' ' || su.lastname,
+                      'score', ind.score,
+                      'comment', ind.comment
+                    )
+                  ) FILTER (WHERE ind.id IS NOT NULL),
+                  '[]'
+                ) AS individual_feedback
+         FROM feedback f
+         LEFT JOIN users u ON f.submitted_by = u.id
+         LEFT JOIN individual_feedback ind ON ind.feedback_id = f.feedback_id
+         LEFT JOIN users su ON ind.student_id = su.id
+         WHERE f.team_id = $1
+         GROUP BY f.feedback_id, u.firstname, u.lastname
+         ORDER BY f.submitted_at DESC`,
+        [teamId]
+      )
+    ]);
+
+    if (teamResult.rows.length === 0) {
       return res.status(404).json({ error: 'Team not found.' });
     }
-    res.json(await buildTeamResponse(result.rows[0]));
+
+    const teamRow = teamResult.rows[0];
+    const feedbackHistory = feedbackResult.rows.map((fb) => ({
+      id: fb.feedback_id,
+      type: fb.type,
+      source: fb.source,
+      submittedBy: fb.submitted_by,
+      submittedAt: fb.submitted_at,
+      teamScore: fb.team_score !== null ? Number(fb.team_score) : null,
+      teamComment: fb.team_comment,
+      commentForTutors: fb.comment_for_tutors,
+      commentForClient: fb.comment_for_client,
+      individualFeedback: fb.individual_feedback.map((item) => ({
+        ...item,
+        score: item.score !== null ? Number(item.score) : null
+      }))
+    }));
+
+    res.json({
+      id: teamRow.team_id,
+      teamName: teamRow.team_name,
+      projectName: teamRow.project_name,
+      unit: teamRow.unit_code,
+      clientId: teamRow.client_id,
+      clientName: teamRow.client_name,
+      tutorId: teamRow.tutor_id,
+      tutorName: teamRow.tutor_name,
+      escalated: teamRow.escalated,
+      students: studentsResult.rows,
+      feedbackHistory
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error fetching team.' });
