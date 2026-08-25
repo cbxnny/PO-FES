@@ -64,7 +64,8 @@ router.post('/signup', async (req, res) => {
         lastName: dbUser.lastname,
         role: dbUser.role
       },
-      token: data.session?.access_token ?? null
+      token: data.session?.access_token ?? null,
+      refreshToken: data.session?.refresh_token ?? null
     });
   } catch (dbErr) {
     console.error('SIGNUP DB SYNC ERROR:', dbErr);
@@ -111,12 +112,38 @@ router.post('/login', async (req, res) => {
         lastName: dbUser.lastname,
         role: dbUser.role
       },
-      token: data.session.access_token
+      token: data.session.access_token,
+      refreshToken: data.session.refresh_token
     });
   } catch (dbErr) {
     console.error('LOGIN DB SYNC ERROR:', dbErr);
     return res.status(500).json({ error: 'Login succeeded, but failed to load profile. Contact support.' });
   }
+});
+
+/**
+ * POST /api/refresh
+ * Body: { refreshToken }
+ * Exchanges a valid refresh token for a new access token + refresh token,
+ * without requiring the user's password again.
+ */
+router.post('/refresh', async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(400).json({ error: 'Refresh token is required.' });
+  }
+
+  const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken });
+
+  if (error || !data.session) {
+    return res.status(401).json({ error: 'Session expired. Please log in again.' });
+  }
+
+  return res.status(200).json({
+    token: data.session.access_token,
+    refreshToken: data.session.refresh_token
+  });
 });
 
 module.exports = router;

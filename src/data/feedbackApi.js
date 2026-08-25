@@ -1,4 +1,4 @@
-import { getAuthToken } from '../utils/auth';
+import { authFetch } from '../utils/auth';
 
 const API_BASE = 'http://localhost:3001/api';
 
@@ -8,24 +8,23 @@ const authHeaders = () => {
 };
 
 export const getTeams = async () => {
-  const res = await fetch(`${API_BASE}/teams`, { headers: authHeaders() });
+  const res = await authFetch(`${API_BASE}/teams`);
   if (!res.ok) throw new Error('Failed to fetch teams');
   return res.json();
 };
 
 export const getTeamById = async (teamId) => {
-  const res = await fetch(`${API_BASE}/teams/${teamId}`, { headers: authHeaders() });
+  const res = await authFetch(`${API_BASE}/teams/${teamId}`);
   if (!res.ok) throw new Error('Failed to fetch team');
   return res.json();
 };
 
 export const addFeedbackToTeam = async (teamId, feedback) => {
-  const res = await fetch(`${API_BASE}/teams/${teamId}/feedback`, {
+  const res = await authFetch(`${API_BASE}/teams/${teamId}/feedback`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(feedback)
   });
-
   if (!res.ok) throw new Error('Failed to submit feedback');
   return res.json();
 };

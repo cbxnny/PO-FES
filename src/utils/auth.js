@@ -137,6 +137,7 @@ export const registerUser = async (firstName, lastName, email, password, role) =
 
   sessionStorage.setItem('po_fes_current_user', JSON.stringify(data.user));
   sessionStorage.setItem('po_fes_token', data.token);
+  if (data.refreshToken) sessionStorage.setItem('po_fes_refresh_token', data.refreshToken);
   return data.user;
 };
 
@@ -159,6 +160,7 @@ export const loginUser = async (email, password) => {
 
   sessionStorage.setItem('po_fes_current_user', JSON.stringify(data.user));
   sessionStorage.setItem('po_fes_token', data.token);
+  if (data.refreshToken) sessionStorage.setItem('po_fes_refresh_token', data.refreshToken);
   return data.user;
 };
 
@@ -183,6 +185,7 @@ export const getCurrentUser = () => {
 export const logoutUser = () => {
   sessionStorage.removeItem('po_fes_current_user');
   sessionStorage.removeItem('po_fes_token');
+  sessionStorage.removeItem('po_fes_refresh_token');
 };
 
 /**
@@ -191,3 +194,62 @@ export const logoutUser = () => {
  * @returns {string|null}
  */
 export const getAuthToken = () => sessionStorage.getItem('po_fes_token');
+export const getRefreshToken = () => sessionStorage.getItem('po_fes_refresh_token');
+
+/**
+ * Exchanges the stored refresh token for a new access token, updating
+ * sessionStorage in place. Returns the new access token, or null if the
+ * refresh itself failed (meaning the person genuinely needs to log in again).
+ */
+export const refreshSession = async () => {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch(`${API}/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken })
+    });
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    sessionStorage.setItem('po_fes_token', data.token);
+    if (data.refreshToken) sessionStorage.setItem('po_fes_refresh_token', data.refreshToken);
+    return data.token;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Wraps fetch with automatic 401/403 recovery: on an expired-token response,
+ * attempts one silent refresh and retries the request once with the new
+ * token. Only logs the user out if the refresh itself fails.
+ */
+export const authFetch = async (url, options = {}) => {
+  const withAuthHeader = (token) => ({
+    ...options,
+    headers: {
+      ...options.headers,
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+
+  let res = await fetch(url, withAuthHeader(getAuthToken()));
+
+  if (res.status === 401 || res.status === 403) {
+    const newToken = await refreshSession();
+
+    if (!newToken) {
+      logoutUser();
+      window.location.href = '/login';
+      throw new Error('Session expired. Please log in again.');
+    }
+
+    res = await fetch(url, withAuthHeader(newToken));
+  }
+
+  return res;
+};

@@ -1,4 +1,4 @@
-import { getAuthToken } from '../utils/auth';
+import { authFetch } from '../utils/auth';
 
 const API_BASE = 'http://localhost:3001/api';
 
@@ -11,33 +11,32 @@ const authHeaders = () => {
 // clients see meetings they logged, tutors see meetings for their teams,
 // students see meetings for their team, staff see everything).
 export const getMeetings = async () => {
-  const res = await fetch(`${API_BASE}/meetings`, { headers: authHeaders() });
+  const res = await authFetch(`${API_BASE}/meetings`);
   if (!res.ok) throw new Error('Failed to fetch meetings');
   return res.json();
 };
 
 // Returns all meetings logged for a single team, most recent first.
 export const getMeetingsByTeam = async (teamId) => {
-  const res = await fetch(`${API_BASE}/meetings/team/${teamId}`, { headers: authHeaders() });
+  const res = await authFetch(`${API_BASE}/meetings/team/${teamId}`);
   if (!res.ok) throw new Error('Failed to fetch meetings for team');
   return res.json();
 };
 
 // Returns a single meeting by id.
 export const getMeetingById = async (meetingId) => {
-  const res = await fetch(`${API_BASE}/meetings/${meetingId}`, { headers: authHeaders() });
+  const res = await authFetch(`${API_BASE}/meetings/${meetingId}`);
   if (!res.ok) throw new Error('Failed to fetch meeting');
   return res.json();
 };
-
 // Logs a new meeting for a team. clientId is set server-side from the
 // authenticated user, so it does not need to be (and cannot be) passed in.
 // meeting: { teamId, meetingDate, meetingTime, attendance,
 //            productProgressionRating, processTeamworkRating }
 export const addMeeting = async (meeting) => {
-  const res = await fetch(`${API_BASE}/meetings`, {
+  const res = await authFetch(`${API_BASE}/meetings`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(meeting)
   });
   if (!res.ok) throw new Error('Failed to submit meeting');
