@@ -63,11 +63,11 @@ const BulkImportModal = ({ onClose }) => {
               or liaison). Each new account receives an email invite to set their own password.
             </p>
             <a
-              href="/templates/bulk-import-template.csv"
-              download="bulk-import-template.csv"
+              href="/templates/bulk-import-template.xlsx"
+              download="bulk-import-template.xlsx"
               className="qut-link"
             >
-              Download template (.csv)
+              Download template (.xlsx, with role dropdown)
             </a>
           </div>
 
