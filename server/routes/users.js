@@ -16,6 +16,10 @@ const supabaseAdmin = createClient(
 
 const VALID_ROLES = ['client', 'student', 'tutor', 'coordinator', 'liaison'];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NAME_REGEX = /^[A-Za-z]+(-[A-Za-z]+)*$/;
+// Matches Australian numbers in +61 form (+61 4XXXXXXXX) or local form
+// (04XXXXXXXX / 0[2378]XXXXXXXX), ignoring spaces/dashes the user typed.
+const AU_PHONE_REGEX = /^(?:\+61[2-478]\d{8}|0[2-478]\d{8})$/;
 const MAX_BATCH_SIZE = 500;
 
 const validateRow = (row, index) => {
@@ -23,20 +27,31 @@ const validateRow = (row, index) => {
   const firstName = (row.firstName || '').trim();
   const lastName = (row.lastName || '').trim();
   const email = (row.email || '').trim().toLowerCase();
+  const phoneNo = (row.phoneNo || '').trim();
+  const phoneDigitsOnly = phoneNo.replace(/[\s-]/g, '');
   const role = normalizeRole(row.role || '');
 
   if (!firstName) errors.push('Missing firstName');
+  else if (!NAME_REGEX.test(firstName)) errors.push('firstName must contain letters only, no spaces or numbers');
+
   if (!lastName) errors.push('Missing lastName');
+  else if (!NAME_REGEX.test(lastName)) errors.push('lastName must contain letters only, no spaces or numbers');
+
   if (!email) errors.push('Missing email');
   else if (!EMAIL_REGEX.test(email)) errors.push('Invalid email format');
+
+  if (!phoneNo) errors.push('Missing phoneNo');
+  else if (!AU_PHONE_REGEX.test(phoneDigitsOnly)) errors.push('phoneNo must be a valid Australian number (e.g. +61400000000 or 0400000000)');
+
   if (!VALID_ROLES.includes(role)) errors.push(`Unrecognised role "${row.role}"`);
 
-  return { firstName, lastName, email, role, errors, rowNumber: index + 1 };
+  return { firstName, lastName, email, phoneNo, role, errors, rowNumber: index + 1 };
 };
 
 /**
  * POST /api/users/bulk-import
- * Body: { users: [{ firstName, lastName, email, role }, ...] }
+ * Body: { users: [{ firstName, lastName, email, phoneNo, role }, ...] }
+ * All fields are required.
  *
  * Coordinator-only (enforced by requireRole below). For each valid row:
  *   1. Creates a Supabase Auth user via inviteUserByEmail — this sends the
@@ -63,7 +78,7 @@ router.post('/bulk-import', authenticateToken, requireRole('coordinator'), async
   const results = [];
 
   for (let i = 0; i < users.length; i++) {
-    const { firstName, lastName, email, role, errors, rowNumber } = validateRow(users[i], i);
+    const { firstName, lastName, email, phoneNo, role, errors, rowNumber } = validateRow(users[i], i);
 
     if (errors.length > 0) {
       results.push({ row: rowNumber, email: users[i].email || null, status: 'error', message: errors.join('; ') });
@@ -82,11 +97,11 @@ router.post('/bulk-import', authenticateToken, requireRole('coordinator'), async
       }
 
       const dbResult = await pool.query(
-        `INSERT INTO users (auth_id, firstName, lastName, email, role)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO users (auth_id, firstName, lastName, email, phone_no, role)
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (email) DO NOTHING
          RETURNING id`,
-        [inviteData.user.id, firstName, lastName, email, role]
+        [inviteData.user.id, firstName, lastName, email, phoneNo, role]
       );
 
       if (dbResult.rows.length === 0) {

@@ -57,9 +57,18 @@ const BulkImportModal = ({ onClose }) => {
           <div>
             <h2>Import Accounts</h2>
             <p className="tutor-comment-modal-subtitle">
-              Upload a .csv or .xlsx file with columns: firstName, lastName, email, role.
-              Each new account receives an email invite to set their own password.
+              Upload a .csv or .xlsx file with columns: firstName, lastName (letters and
+              hyphens only, no spaces), email, phoneNo (Australian number, e.g.
+              +61400000000 or 0400000000), role (client, student, tutor, coordinator,
+              or liaison). Each new account receives an email invite to set their own password.
             </p>
+            <a
+              href="/templates/bulk-import-template.csv"
+              download="bulk-import-template.csv"
+              className="qut-link"
+            >
+              Download template (.csv)
+            </a>
           </div>
 
           <button
@@ -89,6 +98,7 @@ const BulkImportModal = ({ onClose }) => {
                     <th>First Name</th>
                     <th>Last Name</th>
                     <th>Email</th>
+                    <th>Phone No.</th>
                     <th>Role</th>
                   </tr>
                 </thead>
@@ -98,6 +108,7 @@ const BulkImportModal = ({ onClose }) => {
                       <td>{row.firstName}</td>
                       <td>{row.lastName}</td>
                       <td>{row.email}</td>
+                      <td>{row.phoneNo || '—'}</td>
                       <td>{row.role}</td>
                     </tr>
                   ))}

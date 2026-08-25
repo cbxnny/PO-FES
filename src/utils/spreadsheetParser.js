@@ -12,6 +12,12 @@ const HEADER_ALIASES = {
   surname: 'lastName',
   email: 'email',
   'email address': 'email',
+  phoneno: 'phoneNo',
+  'phone_no': 'phoneNo',
+  'phone no': 'phoneNo',
+  'phone number': 'phoneNo',
+  phone: 'phoneNo',
+  mobile: 'phoneNo',
   role: 'role',
   'user role': 'role',
   'account type': 'role'
@@ -25,7 +31,7 @@ const normalizeHeader = (header) => {
 // Converts a raw row (with whatever headers were in the file) into
 // { firstName, lastName, email, role }. Unrecognised columns are ignored.
 const normalizeRow = (rawRow) => {
-  const row = { firstName: '', lastName: '', email: '', role: '' };
+  const row = { firstName: '', lastName: '', email: '', phoneNo: '', role: '' };
   for (const [header, value] of Object.entries(rawRow)) {
     const field = normalizeHeader(header);
     if (field) row[field] = String(value ?? '').trim();
