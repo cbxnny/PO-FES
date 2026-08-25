@@ -1,3 +1,4 @@
-firstName,lastName,email,phoneNo,role
-Jane,Smith,jane.smith@example.com,0400000000,student
-John,Doe,john.doe@example.com,0400000001,tutor
+firstName,lastName,email,phoneNo,role,,,
+Jane,Smith,jane.smith@example.com,400000000,student,,,"Upload a .csv or .xlsx file with columns: firstName, lastName (letters and hyphens only, no spaces)"
+John,Doe,john.doe@example.com,400000001,tutor,,,"role (client, student, tutor, coordinator, or liaison). Each new account receives an email invite to set their own password."
+,,,,,,," email, phoneNo (Australian number, e.g. +61400000000 or 0400000000), "
