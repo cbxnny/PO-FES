@@ -1498,6 +1498,18 @@ p {
   font-weight: 700;
 }
 
+.qut-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: var(--qut-blue);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.qut-link:hover {
+  color: var(--qut-blue-hover);
+}
+
 .tutor-comment-modal-form {
   display: grid;
   gap: 1rem;
