@@ -2,11 +2,6 @@ import { authFetch } from '../utils/auth';
 
 const API_BASE = 'http://localhost:3001/api';
 
-const authHeaders = () => {
-  const token = getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
 export const getTeams = async () => {
   const res = await authFetch(`${API_BASE}/teams`);
   if (!res.ok) throw new Error('Failed to fetch teams');
@@ -26,6 +21,19 @@ export const addFeedbackToTeam = async (teamId, feedback) => {
     body: JSON.stringify(feedback)
   });
   if (!res.ok) throw new Error('Failed to submit feedback');
+  return res.json();
+};
+
+export const escalateTeam = async (teamId, note) => {
+  const res = await authFetch(`${API_BASE}/teams/${teamId}/escalate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note })
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to escalate team.');
+  }
   return res.json();
 };
 

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '../components/DashboardHeader';
 import {
+  escalateTeam,
   formatDate,
   getTeamById,
   getTeams,
@@ -155,6 +156,7 @@ const UnitCoordinatorDashboard = () => {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [teams, setTeams] = useState([]);
+  const [escalatingTeamId, setEscalatingTeamId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -206,16 +208,22 @@ const UnitCoordinatorDashboard = () => {
     });
   }, [filter, query, teams]);
 
-  const handleEscalate = (teamId) => {
-    setTeams((currentTeams) => (
-      currentTeams.map((team) => (
-        team.id === teamId
-          ? { ...team, escalated: true }
-          : team
-      ))
-    ));
+  const handleEscalate = async (teamId) => {
+    if (!window.confirm('Escalate this team to Industry Liaison?')) return;
 
-    alert('Issue flagged for Industry Liaison. Backend saving can be connected later.');
+    setEscalatingTeamId(teamId);
+    try {
+      await escalateTeam(teamId, null);
+      setTeams((currentTeams) =>
+        currentTeams.map((team) =>
+          team.id === teamId ? { ...team, escalationLevel: 2, escalated: true } : team
+        )
+      );
+    } catch (err) {
+      alert(err.message || 'Could not escalate this team.');
+    } finally {
+      setEscalatingTeamId(null);
+    }
   };
 
   const handleExport = () => {
@@ -420,8 +428,9 @@ const UnitCoordinatorDashboard = () => {
                   <button
                     className="qut-btn qut-btn-danger"
                     onClick={() => handleEscalate(team.id)}
+                    disabled={team.escalationLevel >= 2 || escalatingTeamId === team.id}
                   >
-                    Escalate to Industry Liaison
+                    {team.escalationLevel >= 2 ? 'Escalated to Liaison' : 'Escalate to Industry Liaison'}
                   </button>
                 </div>
               </section>

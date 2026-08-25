@@ -5,6 +5,7 @@ import { getCurrentUser } from '../utils/auth';
 import { getUserDisplayName } from '../utils/roleUtils';
 import {
   addFeedbackToTeam,
+  escalateTeam,
   formatDate,
   getTeamById,
   getTeams,
@@ -392,6 +393,7 @@ const TutorDashboard = () => {
   const [commentError, setCommentError] = useState(null);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [escalatingTeamId, setEscalatingTeamId] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -452,6 +454,24 @@ const TutorDashboard = () => {
     setCommentTeam(null);
     setComment('');
     setCommentError(null);
+  };
+
+  const handleEscalate = async (teamId) => {
+    if (!window.confirm('Escalate this team to the Unit Coordinator?')) return;
+  
+    setEscalatingTeamId(teamId);
+    try {
+      await escalateTeam(teamId, null);
+      setTeams((current) =>
+        current.map((team) =>
+          team.id === teamId ? { ...team, escalationLevel: 1, escalated: true } : team
+        )
+      );
+    } catch (err) {
+      alert(err.message || 'Could not escalate this team.');
+    } finally {
+      setEscalatingTeamId(null);
+    }
   };
 
   const handleSubmitComment = async (event) => {
@@ -612,9 +632,10 @@ const TutorDashboard = () => {
 
                   <button
                     className="qut-btn qut-btn-danger"
-                    onClick={() => alert('Issue escalated to Unit Coordinator.')}
+                    onClick={() => handleEscalate(team.id)}
+                    disabled={team.escalationLevel >= 1 || escalatingTeamId === team.id}
                   >
-                    Escalate
+                    {team.escalationLevel >= 1 ? 'Escalated to Coordinator' : 'Escalate'}
                   </button>
 
                   <button

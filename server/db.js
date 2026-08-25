@@ -49,6 +49,10 @@ const initDb = async () => {
       ALTER TABLE teams ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES users(id);
       ALTER TABLE teams ADD COLUMN IF NOT EXISTS tutor_id INTEGER REFERENCES users(id);
       ALTER TABLE teams ADD COLUMN IF NOT EXISTS escalated BOOLEAN DEFAULT FALSE;
+      ALTER TABLE teams ADD COLUMN IF NOT EXISTS escalation_level INTEGER DEFAULT 0;
+      ALTER TABLE teams ADD COLUMN IF NOT EXISTS escalation_note TEXT;
+      ALTER TABLE teams ADD COLUMN IF NOT EXISTS escalated_by INTEGER REFERENCES users(id);
+      ALTER TABLE teams ADD COLUMN IF NOT EXISTS escalated_at TIMESTAMP;
 
       CREATE TABLE IF NOT EXISTS team_members (
         team_id INTEGER REFERENCES teams(team_id) ON DELETE CASCADE,

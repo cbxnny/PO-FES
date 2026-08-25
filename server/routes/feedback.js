@@ -5,7 +5,8 @@ const authenticateToken = require('../middleware/authMiddleware');
 const { normalizeRole } = require('../utils/roleUtils');
 
 const TEAM_BASE_QUERY = `
-  SELECT t.team_id, t.team_name, t.escalated, t.client_id, t.tutor_id,
+  SELECT t.team_id, t.team_name, t.escalated, t.escalation_level, t.escalation_note,
+         t.escalated_at, t.client_id, t.tutor_id,
          p.project_name, un.unit_code,
          client.firstname || ' ' || client.lastname AS client_name,
          tutor.firstname || ' ' || tutor.lastname AS tutor_name
@@ -124,6 +125,7 @@ router.get('/', authenticateToken, async (req, res) => {
       clientName: row.client_name,
       tutorName: row.tutor_name,
       escalated: row.escalated,
+      escalationLevel: row.escalation_level,
       lastFeedbackAt: latestByTeamId[row.team_id] || null
     }));
 
@@ -204,12 +206,70 @@ router.get('/:teamId', authenticateToken, async (req, res) => {
       tutorId: teamRow.tutor_id,
       tutorName: teamRow.tutor_name,
       escalated: teamRow.escalated,
+      escalationLevel: teamRow.escalation_level,
+      escalationNote: teamRow.escalation_note,
       students: studentsResult.rows,
       feedbackHistory
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error fetching team.' });
+  }
+});
+
+router.post('/:teamId/escalate', authenticateToken, async (req, res) => {
+  const { teamId } = req.params;
+  const { note } = req.body;
+  const { id, role } = req.user;
+  const normalizedRole = normalizeRole(role);
+
+  if (!['tutor', 'coordinator'].includes(normalizedRole)) {
+    return res.status(403).json({ error: 'Only tutors or coordinators can escalate a team.' });
+  }
+
+  try {
+    const currentResult = await pool.query(
+      'SELECT escalation_level, tutor_id FROM teams WHERE team_id = $1',
+      [teamId]
+    );
+
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Team not found.' });
+    }
+
+    const current = currentResult.rows[0];
+
+    if (normalizedRole === 'tutor') {
+      if (current.tutor_id !== id) {
+        return res.status(403).json({ error: 'You are not the assigned tutor for this team.' });
+      }
+      if (current.escalation_level >= 1) {
+        return res.status(400).json({ error: 'This team has already been escalated to the coordinator.' });
+      }
+    }
+
+    if (normalizedRole === 'coordinator' && current.escalation_level >= 2) {
+      return res.status(400).json({ error: 'This team has already been escalated to Industry Liaison.' });
+    }
+
+    const newLevel = normalizedRole === 'tutor' ? 1 : 2;
+
+    const result = await pool.query(
+      `UPDATE teams
+       SET escalation_level = $1,
+           escalated = TRUE,
+           escalation_note = $2,
+           escalated_by = $3,
+           escalated_at = NOW()
+       WHERE team_id = $4
+       RETURNING team_id, escalation_level, escalation_note, escalated_at`,
+      [newLevel, note || null, id, teamId]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error escalating team.' });
   }
 });
 
