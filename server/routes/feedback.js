@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../db');
 const authenticateToken = require('../middleware/authMiddleware');
 const { normalizeRole } = require('../utils/roleUtils');
+const { sendEscalationEmail } = require('../utils/mailer');
 
 const TEAM_BASE_QUERY = `
   SELECT t.team_id, t.team_name, t.escalated, t.escalation_level, t.escalation_note,
@@ -229,9 +230,13 @@ router.post('/:teamId/escalate', authenticateToken, async (req, res) => {
 
   try {
     const currentResult = await pool.query(
-      'SELECT escalation_level, tutor_id FROM teams WHERE team_id = $1',
+      `SELECT t.escalation_level, t.tutor_id, t.team_name, p.project_name
+       FROM teams t
+       JOIN projects p ON t.project_id = p.project_id
+       WHERE t.team_id = $1`,
       [teamId]
     );
+
 
     if (currentResult.rows.length === 0) {
       return res.status(404).json({ error: 'Team not found.' });
@@ -265,6 +270,15 @@ router.post('/:teamId/escalate', authenticateToken, async (req, res) => {
        RETURNING team_id, escalation_level, escalation_note, escalated_at`,
       [newLevel, note || null, id, teamId]
     );
+
+    // Fire-and-forget — an email failure shouldn't block the escalation response
+    sendEscalationEmail({
+      teamName: current.team_name,
+      projectName: current.project_name,
+      escalationLevel: newLevel,
+      escalatedByName: req.user.firstName ? `${req.user.firstName} ${req.user.lastName}` : req.user.email,
+      note
+    });
 
     res.json(result.rows[0]);
   } catch (err) {
