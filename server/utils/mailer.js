@@ -6,7 +6,7 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_APP_PASSWORD
   },
-  // Necessary to avoid "self signed certificate" errors when using Gmail's SMTP server 
+  // Necessary to avoid "self signed certificate" errors when using Gmail's SMTP server, adjust when deploying to Render
   tls: {
     rejectUnauthorized: false
   }
