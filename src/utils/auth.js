@@ -14,6 +14,8 @@
  * backend API.
  */
 
+import { API_BASE as API } from './apiConfig';
+
 // ---------------------------------------------------------------------------
 // Legacy seed data (no longer used by login/signup — kept for reference)
 // ---------------------------------------------------------------------------
@@ -106,10 +108,8 @@ export const checkPasswordStrength = (password) => {
 };
 
 // ---------------------------------------------------------------------------
-// API base URL
+// API base URL (see the import at the top of this file)
 // ---------------------------------------------------------------------------
-
-const API = 'http://localhost:3001/api';
 
 // ---------------------------------------------------------------------------
 // Auth API calls

@@ -1,6 +1,6 @@
 import { authFetch } from '../utils/auth';
 
-const API_BASE = 'http://localhost:3001/api';
+import { API_BASE } from '../utils/apiConfig';
 
 export const getTeams = async () => {
   const res = await authFetch(`${API_BASE}/teams`);

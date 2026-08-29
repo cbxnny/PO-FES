@@ -3,7 +3,25 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-app.use(cors({ origin: /^http:\/\/localhost:\d+$/ }));
+
+// Allow local dev (any localhost port) always, plus the deployed frontend's
+// real URL once FRONTEND_URL is set as an environment variable in production
+// (e.g. FRONTEND_URL=https://your-app.vercel.app).
+const allowedOrigins = [/^http:\/\/localhost:\d+$/];
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. curl, Postman, server-to-server)
+    if (!origin) return callback(null, true);
+    const isAllowed = allowedOrigins.some((allowed) =>
+      allowed instanceof RegExp ? allowed.test(origin) : allowed === origin
+    );
+    callback(isAllowed ? null : new Error('Not allowed by CORS'), isAllowed);
+  }
+}));
 app.use(express.json());
 
 // Initialise DB tables on startup
