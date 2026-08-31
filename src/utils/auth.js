@@ -135,10 +135,16 @@ export const registerUser = async (firstName, lastName, email, password, role) =
   const data = await res.json();
   if (!res.ok) throw new Error(data.error);
 
-  sessionStorage.setItem('po_fes_current_user', JSON.stringify(data.user));
-  sessionStorage.setItem('po_fes_token', data.token);
-  if (data.refreshToken) sessionStorage.setItem('po_fes_refresh_token', data.refreshToken);
-  return data.user;
+  // Only store session data if the email has already been confirmed.
+  // When email verification is required, the server returns
+  // needsEmailConfirmation: true and null tokens.
+  if (data.token) {
+    sessionStorage.setItem('po_fes_current_user', JSON.stringify(data.user));
+    sessionStorage.setItem('po_fes_token', data.token);
+    if (data.refreshToken) sessionStorage.setItem('po_fes_refresh_token', data.refreshToken);
+  }
+
+  return { ...data.user, needsEmailConfirmation: !!data.needsEmailConfirmation };
 };
 
 /**

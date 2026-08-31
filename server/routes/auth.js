@@ -56,6 +56,26 @@ router.post('/signup', async (req, res) => {
       role
     });
 
+    // If the user's email is not yet confirmed, do NOT return session tokens.
+    // Supabase may still return a session object, but we must not hand it to
+    // the client until the email has been verified.
+    const emailConfirmed = !!data.user.email_confirmed_at;
+
+    if (!emailConfirmed) {
+      return res.status(201).json({
+        user: {
+          id: dbUser.id,
+          email: dbUser.email,
+          firstName: dbUser.firstname,
+          lastName: dbUser.lastname,
+          role: dbUser.role
+        },
+        needsEmailConfirmation: true,
+        token: null,
+        refreshToken: null
+      });
+    }
+
     return res.status(201).json({
       user: {
         id: dbUser.id,
@@ -89,6 +109,13 @@ router.post('/login', async (req, res) => {
 
   if (error) {
     return res.status(401).json({ error: error.message });
+  }
+
+  // Block login for users who haven't confirmed their email yet.
+  if (!data.user.email_confirmed_at) {
+    return res.status(403).json({
+      error: 'Please verify your email address before logging in. Check your inbox for the confirmation link.'
+    });
   }
 
   const meta = data.user.user_metadata ?? {};

@@ -22,18 +22,14 @@ const ConfirmationMessage = () => {
                 <div className="confirm-avatar" />
 
                 <h1 className="auth-heading" style={{ marginTop: '4px' }}>
-                    Account successfully created
+                    Check your email
                 </h1>
                 <p className="auth-subheading" style={{ marginBottom: '28px' }}>
-                    Your account is ready. You can now sign in and get started.
+                    We've sent a verification link to your email address.
+                    Please click the link to confirm your account before signing in.
                 </p>
 
-                <button
-                    className="auth-btn"
-                    onClick={() => navigate('/login', { replace: true })}
-                >
-                    OK
-                </button>
+
             </div>
         </div>
     );
