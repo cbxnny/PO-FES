@@ -19,9 +19,9 @@
 // ---------------------------------------------------------------------------
 
 const DEFAULT_USERS = [
-  { name: 'Project Owner User',    email: 'owner@qut.edu.au',      password: 'Password123!', role: 'Project Owner' },
-  { name: 'Student User',          email: 'student@qut.edu.au',    password: 'Password123!', role: 'Student' },
-  { name: 'Industry Liaison User', email: 'liaison@qut.edu.au',    password: 'Password123!', role: 'Industry Liaison' },
+  { name: 'Project Owner User', email: 'owner@qut.edu.au', password: 'Password123!', role: 'Project Owner' },
+  { name: 'Student User', email: 'student@qut.edu.au', password: 'Password123!', role: 'Student' },
+  { name: 'Industry Liaison User', email: 'liaison@qut.edu.au', password: 'Password123!', role: 'Industry Liaison' },
   { name: 'Unit Coordinator User', email: 'coordinator@qut.edu.au', password: 'Password123!', role: 'Unit Coordinator' }
 ];
 
@@ -98,8 +98,8 @@ export const checkPasswordStrength = (password) => {
 
   let label = 'Weak';
   let color = '#ef4444'; // red
-  if (score === 2) { label = 'Fair';   color = '#f59e0b'; } // amber
-  if (score === 3) { label = 'Good';   color = '#3b82f6'; } // blue
+  if (score === 2) { label = 'Fair'; color = '#f59e0b'; } // amber
+  if (score === 3) { label = 'Good'; color = '#3b82f6'; } // blue
   if (score === 4) { label = 'Strong'; color = '#10b981'; } // green
 
   return { score, label, color, feedback, isValid: score === 4 };
@@ -109,7 +109,7 @@ export const checkPasswordStrength = (password) => {
 // API base URL
 // ---------------------------------------------------------------------------
 
-const API = 'http://localhost:3001/api';
+const API = import.meta.env.VITE_API_URL;
 
 // ---------------------------------------------------------------------------
 // Auth API calls
