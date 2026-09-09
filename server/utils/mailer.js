@@ -10,7 +10,7 @@ const brevo = new BrevoClient({
 const NOTIFICATION_RECIPIENT = 'pofescapstone@gmail.com';
 
 /**
- * Sends an escalation notification email.
+ * Sends an escalation notification email
  * @param {Object} params
  * @param {string} params.teamName
  * @param {string} params.projectName
