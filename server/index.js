@@ -3,7 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-app.use(cors({ origin: /^http:\/\/localhost:\d+$/ }));
+app.use(cors({ origin: [/^http:\/\/localhost:\d+$/,'https://po-fes.vercel.app']}));
 app.use(express.json());
 
 // Initialise DB tables on startup
@@ -26,4 +26,5 @@ app.get('/api/protected-data', authenticateToken, (req, res) => {
   res.json({ message: 'You have access!', user: req.user });
 });
 
-app.listen(3001, () => console.log('Server running on http://localhost:3001'));
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
