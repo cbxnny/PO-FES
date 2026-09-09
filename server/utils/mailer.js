@@ -1,14 +1,7 @@
-const nodemailer = require('nodemailer');
+const brevo = require('@getbrevo/brevo');
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp-relay.brevo.com',
-  port: 2525,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD
-  }
-});
+const apiInstance = new brevo.TransactionalEmailsApi();
+apiInstance.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
 
 // Dummy recipient for now
 const NOTIFICATION_RECIPIENT = 'pofescapstone@gmail.com';
@@ -22,7 +15,6 @@ const NOTIFICATION_RECIPIENT = 'pofescapstone@gmail.com';
  * @param {string} params.escalatedByName
  * @param {string} [params.note]
  */
-
 const sendEscalationEmail = async ({ teamName, projectName, escalationLevel, escalatedByName, note }) => {
   const roleLabel = escalationLevel === 1 ? 'Unit Coordinator' : 'Industry Liaison';
   const subject = `[PO-FES] Team "${teamName}" escalated to ${roleLabel}`;
@@ -39,18 +31,17 @@ ${note ? `Note: ${note}` : ''}
 Please log in to PO-FES to review this team.
   `.trim();
 
+  const email = new brevo.SendSmtpEmail();
+  email.sender = { name: 'PO-FES Notifications', email: 'pofescapstone@gmail.com' };
+  email.to = [{ email: NOTIFICATION_RECIPIENT }];
+  email.subject = subject;
+  email.textContent = text;
+
   try {
-    await transporter.sendMail({
-      from: `"PO-FES Notifications" <${process.env.EMAIL_USER}>`,
-      to: NOTIFICATION_RECIPIENT,
-      subject,
-      text
-    });
+    await apiInstance.sendTransacEmail(email);
     console.log(`Escalation email sent for team "${teamName}" (level ${escalationLevel})`);
   } catch (err) {
-    // Don't let an email failure break the escalation itself —
-    // just log it so the escalation still succeeds in the database.
-    console.error('ESCALATION EMAIL ERROR:', err);
+    console.error('ESCALATION EMAIL ERROR:', err.response?.body || err.message || err);
   }
 };
 

@@ -11,6 +11,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@getbrevo/brevo": "^6.0.3",
     "@supabase/supabase-js": "^2.45.4",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
