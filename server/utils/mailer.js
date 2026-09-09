@@ -1,3 +1,5 @@
+console.log('MAILER.JS LOADED — Brevo HTTP API version');
+
 const brevo = require('@getbrevo/brevo');
 
 const apiInstance = new brevo.TransactionalEmailsApi();
