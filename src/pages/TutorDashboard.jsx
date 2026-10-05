@@ -5,7 +5,8 @@ import { getCurrentUser } from '../utils/auth';
 import { getUserDisplayName } from '../utils/roleUtils';
 import {
   addFeedbackToTeam,
-  escalateTeam,
+  escalateIssue,
+  resolveFeedbackAlert,
   formatDate,
   getTeamById,
   getTeams,
@@ -173,6 +174,20 @@ const getTeamAlerts = (team) => {
     });
   }
 
+  (team.studentAlerts || [])
+    .filter((alert) => alert.status !== 'resolved')
+    .forEach((alert) => {
+      alerts.push({
+        id: `student-alert-${alert.id}`,
+        alertId: alert.id,
+        teamId: team.id,
+        feedbackId: alert.feedbackId,
+        teamName: team.teamName,
+        message: `${alert.studentName || 'A student'} wants you to review feedback: ${alert.reason}`,
+        type: 'student-alert'
+      });
+    });
+
   return alerts;
 };
 
@@ -310,6 +325,74 @@ const LatestFeedbackCard = ({
   </section>
 );
 
+
+const EscalationModal = ({
+  team,
+  target,
+  note,
+  submitting,
+  onTargetChange,
+  onNoteChange,
+  onClose,
+  onSubmit
+}) => {
+  if (!team) return null;
+
+  const options = [
+    { value: 'coordinator', label: 'Unit Coordinator' },
+    { value: 'liaison', label: 'Industry Liaison' },
+    { value: 'both', label: 'Both' }
+  ];
+
+  return (
+    <div className="feedback-modal-overlay">
+      <section className="feedback-modal-card escalation-modal-card">
+        <div className="feedback-modal-header">
+          <div>
+            <h2>Escalate Team</h2>
+            <p className="tutor-comment-modal-subtitle">
+              {team.teamName} - {team.projectName}
+            </p>
+          </div>
+
+          <button type="button" className="feedback-modal-close" onClick={onClose} disabled={submitting}>×</button>
+        </div>
+
+        <div className="escalation-option-grid">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`qut-btn ${target === option.value ? 'qut-btn-primary' : 'qut-btn-outline'}`}
+              onClick={() => onTargetChange(option.value)}
+              disabled={submitting}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="qut-field">
+          <label>Optional note</label>
+          <textarea
+            className="qut-textarea feedback-textarea-small"
+            placeholder="Add a short reason for the escalation..."
+            value={note}
+            onChange={(event) => onNoteChange(event.target.value)}
+          />
+        </div>
+
+        <div className="tutor-comment-modal-actions">
+          <button type="button" className="qut-btn qut-btn-outline" onClick={onClose} disabled={submitting}>Cancel</button>
+          <button type="button" className="qut-btn qut-btn-danger" onClick={onSubmit} disabled={submitting}>
+            {submitting ? 'Escalating...' : 'Escalate'}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+};
+
 const CommentForClientModal = ({
   team,
   comment,
@@ -394,6 +477,9 @@ const TutorDashboard = () => {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [loading, setLoading] = useState(true);
   const [escalatingTeamId, setEscalatingTeamId] = useState(null);
+  const [escalationTeam, setEscalationTeam] = useState(null);
+  const [escalationTarget, setEscalationTarget] = useState('coordinator');
+  const [escalationNote, setEscalationNote] = useState('');
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -456,21 +542,62 @@ const TutorDashboard = () => {
     setCommentError(null);
   };
 
-  const handleEscalate = async (teamId) => {
-    if (!window.confirm('Escalate this team to the Unit Coordinator?')) return;
-  
-    setEscalatingTeamId(teamId);
+  const handleEscalate = (team) => {
+    setEscalationTeam(team);
+    setEscalationTarget('coordinator');
+    setEscalationNote('');
+  };
+
+  const closeEscalationModal = () => {
+    if (escalatingTeamId) return;
+    setEscalationTeam(null);
+    setEscalationTarget('coordinator');
+    setEscalationNote('');
+  };
+
+  const submitEscalation = async () => {
+    if (!escalationTeam) return;
+
+    setEscalatingTeamId(escalationTeam.id);
     try {
-      await escalateTeam(teamId, null);
+      await escalateIssue(escalationTeam.id, { target: escalationTarget, note: escalationNote.trim() });
       setTeams((current) =>
         current.map((team) =>
-          team.id === teamId ? { ...team, escalationLevel: 1, escalated: true } : team
+          team.id === escalationTeam.id
+            ? {
+                ...team,
+                escalationLevel: escalationTarget === 'coordinator' ? 1 : 2,
+                escalated: true,
+                activeEscalations: [
+                  ...((team.activeEscalations || [])),
+                  { id: `temp-${Date.now()}`, target: escalationTarget, note: escalationNote.trim(), status: 'open' }
+                ]
+              }
+            : team
         )
       );
+      closeEscalationModal();
     } catch (err) {
       alert(err.message || 'Could not escalate this team.');
     } finally {
       setEscalatingTeamId(null);
+    }
+  };
+
+  const handleResolveStudentAlert = async (alert) => {
+    try {
+      await resolveFeedbackAlert(alert.teamId, alert.alertId);
+      setTeams((current) => current.map((team) => {
+        if (team.id !== alert.teamId) return team;
+        return {
+          ...team,
+          studentAlerts: (team.studentAlerts || []).map((item) => (
+            item.id === alert.alertId ? { ...item, status: 'resolved' } : item
+          ))
+        };
+      }));
+    } catch (err) {
+      alert(err.message || 'Could not resolve this alert.');
     }
   };
 
@@ -556,123 +683,143 @@ const TutorDashboard = () => {
     <div className="qut-page">
       <DashboardHeader title="Tutor Dashboard" />
 
-      <main className="qut-content">
-        <section className="qut-card qut-metric-strip tutor-metric-strip">
-          <div className="qut-metric-item">
-            <span>Assigned Teams</span>
-            <strong>{teams.length}</strong>
-          </div>
+      <main className="qut-content qut-content-wide">
+        <div className="dashboard-with-side-panel tutor-dashboard-grid">
+          <aside className="qut-card dashboard-side-panel">
+            <h2 className="qut-section-heading side-panel-heading">Alerts & Notifications</h2>
 
-          <div className="qut-metric-item">
-            <span>Project Owner Feedback Received</span>
-            <strong>{teams.filter(hasClientFeedback).length}</strong>
-          </div>
-
-          <div className="qut-metric-item">
-            <span>Needs Attention</span>
-            <strong>{alerts.length}</strong>
-          </div>
-        </section>
-
-        <div className="qut-spacer" />
-
-        <h2 className="qut-section-heading">Alerts</h2>
-
-        <section className="qut-card">
-          <div className="qut-alert-list">
-            {alerts.length ? alerts.map((alert) => (
-              <div className="qut-alert-item tutor-alert-item" key={alert.id}>
-                <span>
-                  <strong>{alert.teamName}</strong>: {alert.message}
-                </span>
-
-                <button
-                  className="qut-btn qut-btn-outline qut-btn-sm"
-                  onClick={() => navigate(`/feedback-timeline/${alert.teamId}`)}
-                >
-                  View
-                </button>
-              </div>
-            )) : (
-              <p>No urgent alerts right now.</p>
-            )}
-          </div>
-        </section>
-
-        <div className="qut-spacer" />
-
-        <h2 className="qut-section-heading">Assigned Teams</h2>
-
-        <div className="qut-compact-grid">
-          {teams.map((team) => {
-            const status = getTeamStatus(team);
-
-            return (
-              <section className="qut-card tutor-team-card" key={team.id}>
-                <div className="client-team-card-header">
-                  <div>
-                    <h3>{team.teamName}</h3>
-                    <p><strong>Project:</strong> {team.projectName}</p>
-                    <p><strong>Project Owner:</strong> {getProjectOwnerName(team)}</p>
-                    <p><strong>Last feedback:</strong> {status.lastText}</p>
-                  </div>
-
-                  <span className={`qut-status ${status.className}`}>
-                    {status.label}
+            <div className="qut-alert-list compact-alert-list">
+              {alerts.length ? alerts.map((alert) => (
+                <div className="qut-alert-item tutor-alert-item" key={alert.id}>
+                  <span>
+                    <strong>{alert.teamName}</strong>: {alert.message}
                   </span>
+
+                  <div className="side-alert-actions">
+                    <button
+                      className="qut-btn qut-btn-outline qut-btn-sm"
+                      onClick={() => navigate(`/feedback-timeline/${alert.teamId}`)}
+                    >
+                      View
+                    </button>
+
+                    {alert.type === 'student-alert' && (
+                      <button
+                        className="qut-btn qut-btn-outline qut-btn-sm"
+                        onClick={() => handleResolveStudentAlert(alert)}
+                      >
+                        Mark resolved
+                      </button>
+                    )}
+                  </div>
                 </div>
+              )) : (
+                <p>No urgent alerts right now.</p>
+              )}
+            </div>
+          </aside>
 
-                <div className="tutor-team-actions">
-                  <button
-                    className="qut-btn qut-btn-outline"
-                    onClick={() => navigate(`/feedback-timeline/${team.id}`)}
-                  >
-                    View Timeline
-                  </button>
+          <div className="dashboard-main-panel">
+            <section className="qut-card qut-metric-strip tutor-metric-strip">
+              <div className="qut-metric-item">
+                <span>Assigned Teams</span>
+                <strong>{teams.length}</strong>
+              </div>
 
-                  <button
-                    className="qut-btn qut-btn-danger"
-                    onClick={() => handleEscalate(team.id)}
-                    disabled={team.escalationLevel >= 1 || escalatingTeamId === team.id}
-                  >
-                    {team.escalationLevel >= 1 ? 'Escalated to Coordinator' : 'Escalate'}
-                  </button>
+              <div className="qut-metric-item">
+                <span>Project Owner Feedback Received</span>
+                <strong>{teams.filter(hasClientFeedback).length}</strong>
+              </div>
 
-                  <button
-                    className="qut-btn qut-btn-primary tutor-comment-action"
-                    onClick={() => openCommentModal(team)}
-                  >
-                    Comment for Client
-                  </button>
-                </div>
-              </section>
-            );
-          })}
-        </div>
-
-        <div className="qut-spacer" />
-
-        <h2 className="qut-section-heading">Latest Feedback Summary</h2>
-
-        <div className="qut-list-grid">
-          {latestSummaries.length ? latestSummaries.map(({ team, feedback }) => {
-            const isOpen = openItems.includes(feedback.id);
-
-            return (
-              <LatestFeedbackCard
-                key={`${team.id}-${feedback.id}`}
-                team={team}
-                feedback={feedback}
-                isOpen={isOpen}
-                onToggle={() => toggleOpen(feedback.id)}
-                onViewTimeline={() => navigate(`/feedback-timeline/${team.id}`)}
-              />
-            );
-          }) : (
-            <section className="qut-card">
-              <p>No project owner feedback submitted yet.</p>
+              <div className="qut-metric-item">
+                <span>Needs Attention</span>
+                <strong>{alerts.length}</strong>
+              </div>
             </section>
-          )}
+
+            <div className="qut-spacer" />
+
+            <h2 className="qut-section-heading">Assigned Teams</h2>
+
+            <div className="qut-compact-grid">
+              {teams.map((team) => {
+                const status = getTeamStatus(team);
+                const activeEscalations = (team.activeEscalations || []).filter((item) => item.status !== 'resolved');
+
+                return (
+                  <section className="qut-card tutor-team-card" key={team.id}>
+                    <div className="client-team-card-header">
+                      <div>
+                        <h3>{team.teamName}</h3>
+                        <p><strong>Project:</strong> {team.projectName}</p>
+                        <p><strong>Project Owner:</strong> {getProjectOwnerName(team)}</p>
+                        <p><strong>Last feedback:</strong> {status.lastText}</p>
+                      </div>
+
+                      <span className={`qut-status ${status.className}`}>
+                        {status.label}
+                      </span>
+                    </div>
+
+                    {activeEscalations.length > 0 && (
+                      <p className="coordinator-attention-line">
+                        <strong>Escalated:</strong> {activeEscalations.map((item) => item.target).join(', ')}
+                      </p>
+                    )}
+
+                    <div className="tutor-team-actions">
+                      <button
+                        className="qut-btn qut-btn-outline"
+                        onClick={() => navigate(`/feedback-timeline/${team.id}`)}
+                      >
+                        View Timeline
+                      </button>
+
+                      <button
+                        className="qut-btn qut-btn-danger"
+                        onClick={() => handleEscalate(team)}
+                        disabled={escalatingTeamId === team.id}
+                      >
+                        Escalate
+                      </button>
+
+                      <button
+                        className="qut-btn qut-btn-primary tutor-comment-action"
+                        onClick={() => openCommentModal(team)}
+                      >
+                        Comment for Client
+                      </button>
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+
+            <div className="qut-spacer" />
+
+            <h2 className="qut-section-heading">Latest Feedback Summary</h2>
+
+            <div className="qut-list-grid">
+              {latestSummaries.length ? latestSummaries.map(({ team, feedback }) => {
+                const isOpen = openItems.includes(feedback.id);
+
+                return (
+                  <LatestFeedbackCard
+                    key={`${team.id}-${feedback.id}`}
+                    team={team}
+                    feedback={feedback}
+                    isOpen={isOpen}
+                    onToggle={() => toggleOpen(feedback.id)}
+                    onViewTimeline={() => navigate(`/feedback-timeline/${team.id}`)}
+                  />
+                );
+              }) : (
+                <section className="qut-card">
+                  <p>No project owner feedback submitted yet.</p>
+                </section>
+              )}
+            </div>
+          </div>
         </div>
       </main>
 
@@ -684,6 +831,17 @@ const TutorDashboard = () => {
         onChange={setComment}
         onClose={closeCommentModal}
         onSubmit={handleSubmitComment}
+      />
+
+      <EscalationModal
+        team={escalationTeam}
+        target={escalationTarget}
+        note={escalationNote}
+        submitting={Boolean(escalatingTeamId)}
+        onTargetChange={setEscalationTarget}
+        onNoteChange={setEscalationNote}
+        onClose={closeEscalationModal}
+        onSubmit={submitEscalation}
       />
     </div>
   );

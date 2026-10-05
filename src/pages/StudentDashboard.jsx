@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import DashboardHeader from '../components/DashboardHeader';
 import { getCurrentUser } from '../utils/auth';
 import {
+  alertTutorAboutFeedback,
   getTeams,
   getTeamById,
   formatDate
@@ -169,6 +170,16 @@ const getStudentFeedback = (feedbackItems, userId) => {
   }));
 };
 
+
+const getViewerText = (feedback) => {
+  const viewers = (feedback.views || [])
+    .filter((viewer) => viewer.name)
+    .map((viewer) => viewer.name);
+
+  if (!viewers.length) return '';
+  return `Viewed by: ${[...new Set(viewers)].join(', ')}`;
+};
+
 const FeedbackRatings = ({ feedback }) => {
   if (hasDomainRatings(feedback)) {
     return (
@@ -272,6 +283,10 @@ const StudentFeedbackDetails = ({ feedback }) => (
         <p>No individual feedback provided for you in this submission.</p>
       )}
     </div>
+
+    {getViewerText(feedback) && (
+      <p className="qut-viewed-line">{getViewerText(feedback)}</p>
+    )}
   </div>
 );
 
@@ -299,13 +314,25 @@ const StudentFeedbackCard = ({
   team,
   isOpen,
   onToggle,
-  isPrevious = false
+  isPrevious = false,
+  isAlertOpen,
+  alertReason,
+  saving,
+  onAlertClick,
+  onAlertReasonChange,
+  onAlertSubmit,
+  onAlertCancel
 }) => (
   <section className={`qut-card qut-feedback-card student-feedback-card ${isOpen ? 'student-feedback-card-open' : ''}`}>
-    <div className="qut-feedback-topline">
-      <span className="qut-status client">
-        Client Feedback
-      </span>
+    <div className="qut-feedback-topline student-feedback-topline">
+      <div className="feedback-status-row">
+        <span className="qut-status client">
+          Client Feedback
+        </span>
+        <button className="qut-btn qut-btn-outline qut-btn-sm student-alert-mini-btn" onClick={onAlertClick}>
+          Alert Tutor
+        </button>
+      </div>
 
       <span className="qut-date-text">
         {formatDate(feedback.submittedAt)} · Submitted by {getSubmittedByText(feedback, team)}
@@ -320,9 +347,34 @@ const StudentFeedbackCard = ({
       )
     )}
 
-    <button className="qut-btn qut-btn-outline student-feedback-btn" onClick={onToggle}>
-      {isOpen ? 'Close Full Submission' : 'Open Full Submission'}
-    </button>
+    <div className="client-dashboard-card-actions feedback-card-actions-wrap">
+      <button className="qut-btn qut-btn-outline" onClick={onToggle}>
+        {isOpen ? 'Close Full Submission' : 'Open Full Submission'}
+      </button>
+    </div>
+
+    {getViewerText(feedback) && (
+  <p className="qut-viewed-line student-viewed-line">
+    {getViewerText(feedback)}
+  </p>
+)}
+
+    {isAlertOpen && (
+      <div className="qut-alert-form">
+        <textarea
+          className="qut-textarea"
+          placeholder="Write why you want your tutor to review this feedback..."
+          value={alertReason}
+          onChange={(event) => onAlertReasonChange(event.target.value)}
+        />
+        <div className="qut-button-row">
+          <button className="qut-btn qut-btn-primary" onClick={onAlertSubmit} disabled={saving}>
+            {saving ? 'Sending...' : 'Send Alert'}
+          </button>
+          <button className="qut-btn qut-btn-outline" onClick={onAlertCancel}>Cancel</button>
+        </div>
+      </div>
+    )}
 
     {isOpen && <StudentFeedbackDetails feedback={feedback} />}
   </section>
@@ -334,11 +386,14 @@ const StudentDashboard = () => {
   const [team, setTeam] = useState(null);
   const [meetings, setMeetings] = useState([]);
   const [openItems, setOpenItems] = useState([]);
+  const [alertingId, setAlertingId] = useState(null);
+  const [alertReason, setAlertReason] = useState('');
+  const [savingAlertId, setSavingAlertId] = useState(null);
+  const [actionMessage, setActionMessage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    getTeams()
+  const loadStudentTeam = () => getTeams()
       .then((teams) => {
         if (!teams.length) {
           setLoading(false);
@@ -357,6 +412,10 @@ const StudentDashboard = () => {
         setTeam(teamData);
         setMeetings(meetingsData || []);
       })
+;
+
+  useEffect(() => {
+    loadStudentTeam()
       .catch(() => setError('Could not load your team. Please try again.'))
       .finally(() => setLoading(false));
   }, []);
@@ -367,6 +426,29 @@ const StudentDashboard = () => {
         ? current.filter((id) => id !== feedbackId)
         : [...current, feedbackId]
     ));
+  };
+
+
+  const handleSendAlert = async (feedback) => {
+    if (!team || !alertReason.trim()) {
+      setActionMessage('Please write a short reason before sending the alert.');
+      return;
+    }
+
+    setSavingAlertId(feedback.id);
+    setActionMessage(null);
+
+    try {
+      await alertTutorAboutFeedback(team.id, feedback.id, alertReason.trim());
+      await loadStudentTeam();
+      setAlertingId(null);
+      setAlertReason('');
+      setActionMessage('Tutor alert sent.');
+    } catch (err) {
+      setActionMessage(err.message || 'Could not send tutor alert.');
+    } finally {
+      setSavingAlertId(null);
+    }
   };
 
   if (loading) {
@@ -423,12 +505,21 @@ const StudentDashboard = () => {
       <main className="qut-content">
         <h2 className="qut-section-heading">Latest Feedback</h2>
 
+        {actionMessage && <p className="qut-inline-message">{actionMessage}</p>}
+
         {latestFeedback ? (
           <StudentFeedbackCard
             feedback={latestFeedback}
             team={team}
             isOpen={openItems.includes(latestFeedback.id)}
             onToggle={() => toggleOpen(latestFeedback.id)}
+            isAlertOpen={alertingId === latestFeedback.id}
+            alertReason={alertReason}
+            saving={savingAlertId === latestFeedback.id}
+            onAlertClick={() => setAlertingId(alertingId === latestFeedback.id ? null : latestFeedback.id)}
+            onAlertReasonChange={setAlertReason}
+            onAlertSubmit={() => handleSendAlert(latestFeedback)}
+            onAlertCancel={() => { setAlertingId(null); setAlertReason(''); }}
           />
         ) : (
           <section className="qut-card">
@@ -449,6 +540,13 @@ const StudentDashboard = () => {
               isOpen={openItems.includes(feedback.id)}
               onToggle={() => toggleOpen(feedback.id)}
               isPrevious
+              isAlertOpen={alertingId === feedback.id}
+              alertReason={alertReason}
+              saving={savingAlertId === feedback.id}
+              onAlertClick={() => setAlertingId(alertingId === feedback.id ? null : feedback.id)}
+              onAlertReasonChange={setAlertReason}
+              onAlertSubmit={() => handleSendAlert(feedback)}
+              onAlertCancel={() => { setAlertingId(null); setAlertReason(''); }}
             />
           )) : (
             <section className="qut-card">
