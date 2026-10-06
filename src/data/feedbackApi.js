@@ -2,15 +2,33 @@ import { authFetch } from '../utils/auth';
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
+const getErrorMessage = async (res, fallback) => {
+  const data = await res.json().catch(() => ({}));
+  return data.error || fallback;
+};
+
+const readJson = async (res) => {
+  if (res.status === 204) return null;
+  return res.json().catch(() => ({}));
+};
+
 export const getTeams = async () => {
   const res = await authFetch(`${API_BASE}/teams`);
-  if (!res.ok) throw new Error('Failed to fetch teams');
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to fetch teams'));
+  }
+
   return res.json();
 };
 
 export const getTeamById = async (teamId) => {
   const res = await authFetch(`${API_BASE}/teams/${teamId}`);
-  if (!res.ok) throw new Error('Failed to fetch team');
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to fetch team'));
+  }
+
   return res.json();
 };
 
@@ -20,21 +38,131 @@ export const addFeedbackToTeam = async (teamId, feedback) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(feedback)
   });
-  if (!res.ok) throw new Error('Failed to submit feedback');
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to submit feedback'));
+  }
+
   return res.json();
 };
 
-export const escalateTeam = async (teamId, note) => {
+export const escalateTeam = async (teamId, note, target = undefined, feedbackId = undefined) => {
   const res = await authFetch(`${API_BASE}/teams/${teamId}/escalate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ note })
+    body: JSON.stringify({ note, target, feedbackId })
   });
+
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'Failed to escalate team.');
+    throw new Error(await getErrorMessage(res, 'Failed to escalate team.'));
   }
+
   return res.json();
+};
+
+export const updateFeedback = async (teamId, feedbackId, feedback) => {
+  const res = await authFetch(`${API_BASE}/teams/${teamId}/feedback/${feedbackId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(feedback)
+  });
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to update feedback.'));
+  }
+
+  return readJson(res);
+};
+
+export const removeFeedback = async (teamId, feedbackId) => {
+  const res = await authFetch(`${API_BASE}/teams/${teamId}/feedback/${feedbackId}`, {
+    method: 'DELETE'
+  });
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to remove feedback.'));
+  }
+
+  return readJson(res);
+};
+
+export const escalateIssue = async (
+  teamId,
+  { target = 'coordinator', note = '', feedbackId = null } = {}
+) => {
+  const res = await authFetch(`${API_BASE}/teams/${teamId}/escalations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target, note, feedbackId })
+  });
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to escalate issue.'));
+  }
+
+  return res.json();
+};
+
+export const resolveEscalation = async (teamId, escalationId) => {
+  const res = await authFetch(`${API_BASE}/teams/${teamId}/escalations/${escalationId}/resolve`, {
+    method: 'PATCH'
+  });
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to resolve escalation.'));
+  }
+
+  return readJson(res);
+};
+
+export const resolveActiveEscalations = async (teamId) => {
+  const res = await authFetch(`${API_BASE}/teams/${teamId}/escalations/resolve-active`, {
+    method: 'PATCH'
+  });
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to resolve active escalations.'));
+  }
+
+  return readJson(res);
+};
+
+export const markFeedbackViewed = async (teamId, feedbackId) => {
+  const res = await authFetch(`${API_BASE}/teams/${teamId}/feedback/${feedbackId}/viewed`, {
+    method: 'POST'
+  });
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to mark feedback as viewed.'));
+  }
+
+  return readJson(res);
+};
+
+export const alertTutorAboutFeedback = async (teamId, feedbackId, reason) => {
+  const res = await authFetch(`${API_BASE}/teams/${teamId}/feedback/${feedbackId}/alert`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason })
+  });
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to alert tutor about feedback.'));
+  }
+
+  return readJson(res);
+};
+
+export const resolveFeedbackAlert = async (teamId, alertId) => {
+  const res = await authFetch(`${API_BASE}/teams/${teamId}/feedback-alerts/${alertId}/resolve`, {
+    method: 'PATCH'
+  });
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to resolve feedback alert.'));
+  }
+
+  return readJson(res);
 };
 
 // ---- Pure display helpers — unchanged, no storage involved ----
@@ -70,7 +198,7 @@ export const formatDaysAgo = (days) => {
 
 export const latestFeedback = (team) => {
   return [...(team.feedbackHistory || [])]
-    .filter((fb) => fb.source === 'client')
+    .filter((fb) => fb.source === 'client' && !fb.isRemoved)
     .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))[0];
 };
 

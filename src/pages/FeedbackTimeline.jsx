@@ -3,11 +3,17 @@ import { useParams } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import DashboardHeader from '../components/DashboardHeader';
 import { getCurrentUser } from '../utils/auth';
-import { normalizeRole } from '../utils/roleUtils';
+import { getUserDisplayName, normalizeRole } from '../utils/roleUtils';
 import {
+  alertTutorAboutFeedback,
+  escalateIssue,
   formatDate,
   getTeamById,
-  getTeamStatus
+  getTeamStatus,
+  markFeedbackViewed,
+  removeFeedback,
+  resolveEscalation,
+  updateFeedback
 } from '../data/feedbackApi';
 import {
   formatMeetingDate,
@@ -209,6 +215,91 @@ const hasOldTeamScore = (feedback) => {
     feedback.teamScore !== undefined &&
     feedback.teamScore !== ''
   );
+};
+
+
+const hasBeenEdited = (feedback) => {
+  if (!feedback.updatedAt || !feedback.submittedAt) return false;
+  return new Date(feedback.updatedAt).getTime() > new Date(feedback.submittedAt).getTime();
+};
+
+const getViewerText = (feedback) => {
+  const viewers = (feedback.views || [])
+    .filter((viewer) => viewer.name)
+    .map((viewer) => viewer.name);
+
+  if (!viewers.length) return '';
+  return `Viewed by: ${[...new Set(viewers)].join(', ')}`;
+};
+
+const getFeedbackSortScore = (feedback) => {
+  const product = Number(getProductRating(feedback));
+  const process = Number(getProcessRating(feedback));
+  const scores = [product, process].filter((score) => !Number.isNaN(score));
+  if (!scores.length) return 0;
+  return scores.reduce((sum, score) => sum + score, 0) / scores.length;
+};
+
+const sortAndFilterFeedbackItems = (items, mode) => {
+  const list = [...items];
+
+  if (mode === 'escalated') {
+    return list.filter((feedback) => (feedback.escalations || []).some((item) => item.status !== 'resolved'));
+  }
+
+  if (mode === 'flagged') {
+    return list.filter((feedback) => (feedback.alerts || []).some((alert) => alert.status !== 'resolved'));
+  }
+
+  if (mode === 'oldest') {
+    return list.sort((a, b) => getDateTimeValue(a.submittedAt) - getDateTimeValue(b.submittedAt));
+  }
+
+  if (mode === 'highest') {
+    return list.sort((a, b) => getFeedbackSortScore(b) - getFeedbackSortScore(a));
+  }
+
+  if (mode === 'lowest') {
+    return list.sort((a, b) => getFeedbackSortScore(a) - getFeedbackSortScore(b));
+  }
+
+  return list.sort((a, b) => getDateTimeValue(b.submittedAt) - getDateTimeValue(a.submittedAt));
+};
+
+const canEditFeedback = (feedback, user) => {
+  if (feedback.isRemoved) return false;
+
+  const role = normalizeRole(user?.role);
+  const userName = cleanText(getUserDisplayName(user)).toLowerCase();
+  const submittedBy = cleanText(feedback.submittedBy).toLowerCase();
+
+  if (feedback.submittedById && String(feedback.submittedById) === String(user?.id)) {
+    return true;
+  }
+
+  if (submittedBy && userName && submittedBy === userName) {
+    return true;
+  }
+
+  // Demo data often does not include submittedById, so use role + source as a safe fallback.
+  if (role === 'client' && isClientFeedback(feedback)) return true;
+  if (role === 'tutor' && isTutorClientComment(feedback)) return true;
+
+  return false;
+};
+
+const canAlertTutor = (feedback, user) => {
+  return normalizeRole(user?.role) === 'student' && isClientFeedback(feedback) && !feedback.isRemoved;
+};
+
+const canEscalateFeedback = (feedback, user) => {
+  const role = normalizeRole(user?.role);
+  return ['tutor', 'coordinator'].includes(role) && isClientFeedback(feedback) && !feedback.isRemoved;
+};
+
+const canResolveEscalations = (user) => {
+  const role = normalizeRole(user?.role);
+  return ['tutor', 'coordinator', 'liaison'].includes(role);
 };
 
 const getTutorCommentText = (feedback) => {
@@ -445,30 +536,174 @@ const FeedbackTimeline = () => {
   const [openItems, setOpenItems] = useState([]);
   const [team, setTeam] = useState(null);
   const [meetings, setMeetings] = useState([]);
+  const [sortMode, setSortMode] = useState('newest');
+  const [editingId, setEditingId] = useState(null);
+  const [editValues, setEditValues] = useState({ teamComment: '', commentForTutors: '', commentForClient: '' });
+  const [alertingId, setAlertingId] = useState(null);
+  const [alertReason, setAlertReason] = useState('');
+  const [actionMessage, setActionMessage] = useState(null);
+  const [savingId, setSavingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const user = getCurrentUser();
+  const role = normalizeRole(user?.role);
 
-  useEffect(() => {
-    Promise.all([
+  const loadTeam = () => {
+    return Promise.all([
       getTeamById(teamId),
       getMeetingsByTeam(teamId)
     ])
       .then(([teamData, meetingsData]) => {
         setTeam(teamData);
         setMeetings(meetingsData || []);
-      })
+      });
+  };
+
+  useEffect(() => {
+    loadTeam()
       .catch(() => setError('Could not load this team. Please try again.'))
       .finally(() => setLoading(false));
   }, [teamId]);
 
-  const toggleOpen = (feedbackId) => {
+  const toggleOpen = async (feedbackId) => {
+    const willOpen = !openItems.includes(feedbackId);
+
     setOpenItems((current) => (
       current.includes(feedbackId)
         ? current.filter((id) => id !== feedbackId)
         : [...current, feedbackId]
     ));
+
+    if (willOpen && role !== 'student') {
+      try {
+        await markFeedbackViewed(teamId, feedbackId);
+        await loadTeam();
+      } catch {
+        // Viewing should not block the user from opening feedback.
+      }
+    }
+  };
+
+  const startEditing = (feedback) => {
+    setEditingId(feedback.id);
+    setEditValues({
+      teamComment: feedback.teamComment || '',
+      commentForTutors: feedback.commentForTutors || '',
+      commentForClient: feedback.commentForClient || getTutorCommentText(feedback) || ''
+    });
+    setActionMessage(null);
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditValues({ teamComment: '', commentForTutors: '', commentForClient: '' });
+  };
+
+  const handleSaveEdit = async (feedback) => {
+    setSavingId(feedback.id);
+    setActionMessage(null);
+
+    try {
+      await updateFeedback(teamId, feedback.id, {
+        teamComment: editValues.teamComment,
+        commentForTutors: editValues.commentForTutors,
+        commentForClient: isTutorClientComment(feedback) ? editValues.commentForClient : feedback.commentForClient,
+        teamScore: feedback.teamScore
+      });
+      await loadTeam();
+      cancelEditing();
+      setActionMessage('Feedback updated.');
+    } catch (err) {
+      setActionMessage(err.message || 'Could not update feedback.');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleRemoveFeedback = async (feedback) => {
+    if (!window.confirm('Remove this feedback/comment? It will be hidden but kept in the record.')) return;
+
+    setSavingId(feedback.id);
+    setActionMessage(null);
+
+    try {
+      await removeFeedback(teamId, feedback.id);
+      await loadTeam();
+      setActionMessage('Feedback removed.');
+    } catch (err) {
+      setActionMessage(err.message || 'Could not remove feedback.');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleAlertTutor = async (feedback) => {
+    if (!alertReason.trim()) {
+      setActionMessage('Please write a short reason before sending the alert.');
+      return;
+    }
+
+    setSavingId(feedback.id);
+    setActionMessage(null);
+
+    try {
+      await alertTutorAboutFeedback(teamId, feedback.id, alertReason.trim());
+      await loadTeam();
+      setAlertingId(null);
+      setAlertReason('');
+      setActionMessage('Tutor alert sent.');
+    } catch (err) {
+      setActionMessage(err.message || 'Could not send tutor alert.');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleEscalateFeedback = async (feedback) => {
+    let target = 'liaison';
+
+    if (role === 'tutor') {
+      target = window.prompt('Escalate to: coordinator, liaison, or both', 'coordinator');
+      if (!target) return;
+      target = target.trim().toLowerCase();
+      if (!['coordinator', 'liaison', 'both'].includes(target)) {
+        alert('Please enter coordinator, liaison, or both.');
+        return;
+      }
+    }
+
+    const note = window.prompt('Optional note for this escalation:', '') || '';
+
+    setSavingId(feedback.id);
+    setActionMessage(null);
+
+    try {
+      await escalateIssue(teamId, { target, note, feedbackId: feedback.id });
+      await loadTeam();
+      setActionMessage('Feedback escalated.');
+    } catch (err) {
+      setActionMessage(err.message || 'Could not escalate feedback.');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleResolveEscalation = async (escalation) => {
+    if (!window.confirm('Mark this escalation as resolved?')) return;
+
+    setSavingId(escalation.id);
+    setActionMessage(null);
+
+    try {
+      await resolveEscalation(teamId, escalation.id);
+      await loadTeam();
+      setActionMessage('Escalation resolved.');
+    } catch (err) {
+      setActionMessage(err.message || 'Could not resolve escalation.');
+    } finally {
+      setSavingId(null);
+    }
   };
 
   if (loading) return (
@@ -489,7 +724,10 @@ const FeedbackTimeline = () => {
   if (error || !team) return <div className="qut-page"><DashboardHeader title="Feedback Timeline" /><main className="qut-content"><p>{error || 'Team not found.'}</p></main></div>;
 
   const status = getTeamStatus(team);
-  const feedbackItems = attachMeetingsToFeedback(team.feedbackHistory || [], meetings, user);
+  const feedbackItems = sortAndFilterFeedbackItems(
+    attachMeetingsToFeedback(team.feedbackHistory || [], meetings, user),
+    sortMode
+  );
 
   return (
     <div className="qut-page">
@@ -504,13 +742,49 @@ const FeedbackTimeline = () => {
 
         <div className="qut-spacer" />
 
-        <h2 className="qut-section-heading">Feedback Timeline</h2>
+        <div className="timeline-heading-row">
+          <h2 className="qut-section-heading">Feedback Timeline</h2>
+
+          <select
+            className="qut-select timeline-sort-select"
+            value={sortMode}
+            onChange={(event) => setSortMode(event.target.value)}
+          >
+            <option value="newest">Latest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="highest">Highest rating first</option>
+            <option value="lowest">Lowest rating first</option>
+            <option value="escalated">Escalated only</option>
+            <option value="flagged">Flagged / alerts only</option>
+          </select>
+        </div>
+
+        {actionMessage && <p className="qut-inline-message">{actionMessage}</p>}
 
         <div className="qut-list-grid">
           {feedbackItems.length ? feedbackItems.map((feedback) => {
             const isOpen = openItems.includes(feedback.id);
             const isClient = isClientFeedback(feedback);
             const isTutorComment = isTutorClientComment(feedback);
+            const isEditing = editingId === feedback.id;
+            const activeEscalations = (feedback.escalations || []).filter((item) => item.status !== 'resolved');
+            const openAlerts = (feedback.alerts || []).filter((alert) => alert.status !== 'resolved');
+
+            if (feedback.isRemoved) {
+              return (
+                <section className="qut-card qut-feedback-card student-feedback-card qut-feedback-removed" key={feedback.id}>
+                  <div className="qut-feedback-topline">
+                    <span className={`qut-status ${getFeedbackBadgeClass(feedback)}`}>
+                      {getFeedbackBadgeText(feedback)}
+                    </span>
+                    <span className="qut-date-text">
+                      {formatDate(feedback.submittedAt)} · Removed after submission
+                    </span>
+                  </div>
+                  <p>This feedback was removed by the submitter.</p>
+                </section>
+              );
+            }
 
             return (
               <section
@@ -518,9 +792,23 @@ const FeedbackTimeline = () => {
                 key={feedback.id}
               >
                 <div className="qut-feedback-topline">
-                  <span className={`qut-status ${getFeedbackBadgeClass(feedback)}`}>
-                    {getFeedbackBadgeText(feedback)}
-                  </span>
+                  <div className="feedback-status-row">
+                    <span className={`qut-status ${getFeedbackBadgeClass(feedback)}`}>
+                      {getFeedbackBadgeText(feedback)}
+                    </span>
+
+                    {hasBeenEdited(feedback) && (
+                      <span className="qut-status qut-status-edited">Edited</span>
+                    )}
+
+                    {activeEscalations.length > 0 && (
+                      <span className="qut-status qut-status-escalated">Escalated</span>
+                    )}
+
+                    {openAlerts.length > 0 && (
+                      <span className="qut-status qut-status-alerted">Student alert</span>
+                    )}
+                  </div>
 
                   <span className="qut-date-text">
                     {formatDate(feedback.submittedAt)} · Submitted by{' '}
@@ -528,22 +816,145 @@ const FeedbackTimeline = () => {
                   </span>
                 </div>
 
-                {!isOpen && isClient && (
-                  <ClientFeedbackSummary feedback={feedback} />
+                {isEditing ? (
+                  <div className="qut-edit-panel">
+                    {isClient && (
+                      <>
+                        <div className="qut-field">
+                          <label>Team Comment</label>
+                          <textarea
+                            className="qut-textarea"
+                            value={editValues.teamComment}
+                            onChange={(event) => setEditValues((current) => ({ ...current, teamComment: event.target.value }))}
+                          />
+                        </div>
+
+                        <div className="qut-field">
+                          <label>Private Comment for Tutors / Teaching Staff</label>
+                          <textarea
+                            className="qut-textarea"
+                            value={editValues.commentForTutors}
+                            onChange={(event) => setEditValues((current) => ({ ...current, commentForTutors: event.target.value }))}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {isTutorComment && (
+                      <div className="qut-field">
+                        <label>Comment for Client</label>
+                        <textarea
+                          className="qut-textarea"
+                          value={editValues.commentForClient}
+                          onChange={(event) => setEditValues((current) => ({ ...current, commentForClient: event.target.value, teamComment: event.target.value }))}
+                        />
+                      </div>
+                    )}
+
+                    <div className="qut-button-row">
+                      <button className="qut-btn qut-btn-primary" onClick={() => handleSaveEdit(feedback)} disabled={savingId === feedback.id}>
+                        {savingId === feedback.id ? 'Saving...' : 'Save Changes'}
+                      </button>
+                      <button className="qut-btn qut-btn-outline" onClick={cancelEditing} disabled={savingId === feedback.id}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {!isOpen && isClient && (
+                      <ClientFeedbackSummary feedback={feedback} />
+                    )}
+
+                    {!isOpen && isTutorComment && (
+                      <TutorCommentSummary feedback={feedback} />
+                    )}
+                  </>
                 )}
 
-                {!isOpen && isTutorComment && (
-                  <TutorCommentSummary feedback={feedback} />
+                {activeEscalations.length > 0 && (
+                  <div className="qut-mini-list">
+                    {activeEscalations.map((escalation) => (
+                      <div className="qut-mini-list-item" key={escalation.id}>
+                        <span>
+                          Escalated to {escalation.target} {escalation.note ? `- ${escalation.note}` : ''}
+                        </span>
+                        {canResolveEscalations(user) && (
+                          <button
+                            className="qut-btn qut-btn-outline qut-btn-sm"
+                            onClick={() => handleResolveEscalation(escalation)}
+                            disabled={savingId === escalation.id}
+                          >
+                            Mark resolved
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
 
-                <button
-                  className="qut-btn qut-btn-outline student-feedback-btn"
-                  onClick={() => toggleOpen(feedback.id)}
-                >
-                  {isClient
-                    ? (isOpen ? 'Close Full Submission' : 'Open Full Submission')
-                    : (isOpen ? 'Close Comment' : 'Open Comment')}
-                </button>
+                {openAlerts.length > 0 && (
+                  <div className="qut-mini-list">
+                    {openAlerts.map((alert) => (
+                      <div className="qut-mini-list-item" key={alert.id}>
+                        <span><strong>{alert.studentName || 'Student'} alert:</strong> {alert.reason}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {!isEditing && (
+                  <div className="client-dashboard-card-actions feedback-card-actions-wrap">
+                    <button
+                      className="qut-btn qut-btn-outline"
+                      onClick={() => toggleOpen(feedback.id)}
+                    >
+                      {isClient
+                        ? (isOpen ? 'Close Full Submission' : 'Open Full Submission')
+                        : (isOpen ? 'Close Comment' : 'Open Comment')}
+                    </button>
+
+                    {canEditFeedback(feedback, user) && (
+                      <>
+                        <button className="qut-btn qut-btn-outline qut-btn-sm" onClick={() => startEditing(feedback)}>
+                          Edit
+                        </button>
+                        <button className="qut-btn qut-btn-danger qut-btn-sm" onClick={() => handleRemoveFeedback(feedback)} disabled={savingId === feedback.id}>
+                          Remove
+                        </button>
+                      </>
+                    )}
+
+                    {canAlertTutor(feedback, user) && (
+                      <button className="qut-btn qut-btn-outline qut-btn-sm" onClick={() => setAlertingId(alertingId === feedback.id ? null : feedback.id)}>
+                        Alert Tutor
+                      </button>
+                    )}
+
+                    {canEscalateFeedback(feedback, user) && (
+                      <button className="qut-btn qut-btn-danger qut-btn-sm" onClick={() => handleEscalateFeedback(feedback)} disabled={savingId === feedback.id}>
+                        Escalate Feedback
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {alertingId === feedback.id && (
+                  <div className="qut-alert-form">
+                    <textarea
+                      className="qut-textarea"
+                      placeholder="Write why you want your tutor to review this feedback..."
+                      value={alertReason}
+                      onChange={(event) => setAlertReason(event.target.value)}
+                    />
+                    <div className="qut-button-row">
+                      <button className="qut-btn qut-btn-primary" onClick={() => handleAlertTutor(feedback)} disabled={savingId === feedback.id}>
+                        {savingId === feedback.id ? 'Sending...' : 'Send Alert'}
+                      </button>
+                      <button className="qut-btn qut-btn-outline" onClick={() => { setAlertingId(null); setAlertReason(''); }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {isOpen && isClient && (
                   <FullSubmissionDetails feedback={feedback} user={user} />
@@ -551,6 +962,10 @@ const FeedbackTimeline = () => {
 
                 {isOpen && isTutorComment && (
                   <TutorCommentDetails feedback={feedback} team={team} />
+                )}
+
+                {isClient && getViewerText(feedback) && (
+                  <p className="qut-viewed-line">{getViewerText(feedback)}</p>
                 )}
               </section>
             );
@@ -564,5 +979,4 @@ const FeedbackTimeline = () => {
     </div>
   );
 };
-
 export default FeedbackTimeline;
