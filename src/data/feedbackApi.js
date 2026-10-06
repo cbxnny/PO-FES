@@ -1,109 +1,35 @@
-import { authFetch, getCurrentUser } from '../utils/auth';
-import { getUserDisplayName } from '../utils/roleUtils';
+import { authFetch } from '../utils/auth';
 
 const API_BASE = import.meta.env.VITE_API_URL;
-const LOCAL_FEATURE_STORE_KEY = 'po_fes_local_feedback_feature_store';
-
-const safeParse = (value, fallback) => {
-  try {
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const readLocalStore = () => safeParse(localStorage.getItem(LOCAL_FEATURE_STORE_KEY), { teams: {} });
-
-const writeLocalStore = (store) => {
-  localStorage.setItem(LOCAL_FEATURE_STORE_KEY, JSON.stringify(store));
-};
-
-const getLocalTeamStore = (store, teamId) => {
-  const id = String(teamId);
-  if (!store.teams[id]) {
-    store.teams[id] = {
-      feedbackEdits: {},
-      removedFeedback: {},
-      escalations: [],
-      alerts: [],
-      views: {}
-    };
-  }
-  return store.teams[id];
-};
 
 const getErrorMessage = async (res, fallback) => {
   const data = await res.json().catch(() => ({}));
   return data.error || fallback;
 };
 
-const mergeById = (items = []) => {
-  const seen = new Set();
-  return items.filter((item) => {
-    const id = String(item.id ?? `${item.name}-${item.role}-${item.createdAt}`);
-    if (seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
-};
-
-const applyLocalTeamEnhancements = (team) => {
-  const store = readLocalStore();
-  const localTeam = store.teams[String(team.id)] || {};
-  const localEscalations = localTeam.escalations || [];
-  const localAlerts = localTeam.alerts || [];
-  const localViews = localTeam.views || {};
-
-  const feedbackHistory = (team.feedbackHistory || []).map((feedback) => {
-    const feedbackId = String(feedback.id);
-    const edit = localTeam.feedbackEdits?.[feedbackId] || null;
-    const removed = localTeam.removedFeedback?.[feedbackId] || null;
-
-    return {
-      ...feedback,
-      ...(edit || {}),
-      isRemoved: Boolean(feedback.isRemoved || removed),
-      removedAt: removed?.removedAt || feedback.removedAt,
-      removedBy: removed?.removedBy || feedback.removedBy,
-      views: mergeById([...(feedback.views || []), ...(localViews[feedbackId] || [])]),
-      alerts: mergeById([
-        ...(feedback.alerts || []),
-        ...localAlerts.filter((alert) => String(alert.feedbackId) === feedbackId)
-      ]),
-      escalations: mergeById([
-        ...(feedback.escalations || []),
-        ...localEscalations.filter((item) => String(item.feedbackId || '') === feedbackId)
-      ])
-    };
-  });
-
-  const teamEscalations = localEscalations.filter((item) => !item.feedbackId);
-  const activeEscalations = mergeById([
-    ...(team.activeEscalations || []),
-    ...teamEscalations
-  ]);
-  const hasOpenEscalation = activeEscalations.some((item) => item.status !== 'resolved');
-
-  return {
-    ...team,
-    feedbackHistory,
-    studentAlerts: mergeById([...(team.studentAlerts || []), ...localAlerts]),
-    activeEscalations,
-    escalated: Boolean(team.escalated || hasOpenEscalation)
-  };
+const readJson = async (res) => {
+  if (res.status === 204) return null;
+  return res.json().catch(() => ({}));
 };
 
 export const getTeams = async () => {
   const res = await authFetch(`${API_BASE}/teams`);
-  if (!res.ok) throw new Error('Failed to fetch teams');
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to fetch teams'));
+  }
+
   return res.json();
 };
 
 export const getTeamById = async (teamId) => {
   const res = await authFetch(`${API_BASE}/teams/${teamId}`);
-  if (!res.ok) throw new Error('Failed to fetch team');
-  const team = await res.json();
-  return applyLocalTeamEnhancements(team);
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to fetch team'));
+  }
+
+  return res.json();
 };
 
 export const addFeedbackToTeam = async (teamId, feedback) => {
@@ -112,7 +38,11 @@ export const addFeedbackToTeam = async (teamId, feedback) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(feedback)
   });
-  if (!res.ok) throw new Error('Failed to submit feedback');
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to submit feedback'));
+  }
+
   return res.json();
 };
 
@@ -122,14 +52,13 @@ export const escalateTeam = async (teamId, note, target = undefined, feedbackId 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ note, target, feedbackId })
   });
+
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'Failed to escalate team.');
+    throw new Error(await getErrorMessage(res, 'Failed to escalate team.'));
   }
+
   return res.json();
 };
-
-
 
 export const updateFeedback = async (teamId, feedbackId, feedback) => {
   const res = await authFetch(`${API_BASE}/teams/${teamId}/feedback/${feedbackId}`, {
@@ -138,16 +67,11 @@ export const updateFeedback = async (teamId, feedbackId, feedback) => {
     body: JSON.stringify(feedback)
   });
 
-  if (res.ok) return res.json();
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to update feedback.'));
+  }
 
-  const store = readLocalStore();
-  const localTeam = getLocalTeamStore(store, teamId);
-  localTeam.feedbackEdits[String(feedbackId)] = {
-    ...feedback,
-    updatedAt: new Date().toISOString()
-  };
-  writeLocalStore(store);
-  return { localOnly: true };
+  return readJson(res);
 };
 
 export const removeFeedback = async (teamId, feedbackId) => {
@@ -155,43 +79,28 @@ export const removeFeedback = async (teamId, feedbackId) => {
     method: 'DELETE'
   });
 
-  if (res.ok) return res.json();
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to remove feedback.'));
+  }
 
-  const user = getCurrentUser();
-  const store = readLocalStore();
-  const localTeam = getLocalTeamStore(store, teamId);
-  localTeam.removedFeedback[String(feedbackId)] = {
-    removedAt: new Date().toISOString(),
-    removedBy: getUserDisplayName(user)
-  };
-  writeLocalStore(store);
-  return { localOnly: true };
+  return readJson(res);
 };
 
-export const escalateIssue = async (teamId, { target = 'coordinator', note = '', feedbackId = null } = {}) => {
+export const escalateIssue = async (
+  teamId,
+  { target = 'coordinator', note = '', feedbackId = null } = {}
+) => {
   const res = await authFetch(`${API_BASE}/teams/${teamId}/escalations`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ target, note, feedbackId })
   });
 
-  if (res.ok) return res.json();
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to escalate issue.'));
+  }
 
-  const user = getCurrentUser();
-  const store = readLocalStore();
-  const localTeam = getLocalTeamStore(store, teamId);
-  localTeam.escalations.push({
-    id: `local-escalation-${Date.now()}`,
-    teamId,
-    feedbackId,
-    target,
-    note,
-    status: 'open',
-    createdAt: new Date().toISOString(),
-    createdBy: getUserDisplayName(user)
-  });
-  writeLocalStore(store);
-  return { localOnly: true };
+  return res.json();
 };
 
 export const resolveEscalation = async (teamId, escalationId) => {
@@ -199,17 +108,11 @@ export const resolveEscalation = async (teamId, escalationId) => {
     method: 'PATCH'
   });
 
-  if (res.ok) return res.json();
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to resolve escalation.'));
+  }
 
-  const store = readLocalStore();
-  const localTeam = getLocalTeamStore(store, teamId);
-  localTeam.escalations = (localTeam.escalations || []).map((item) => (
-    String(item.id) === String(escalationId)
-      ? { ...item, status: 'resolved', resolvedAt: new Date().toISOString() }
-      : item
-  ));
-  writeLocalStore(store);
-  return { localOnly: true };
+  return readJson(res);
 };
 
 export const resolveActiveEscalations = async (teamId) => {
@@ -217,17 +120,11 @@ export const resolveActiveEscalations = async (teamId) => {
     method: 'PATCH'
   });
 
-  if (res.ok) return res.json();
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to resolve active escalations.'));
+  }
 
-  const store = readLocalStore();
-  const localTeam = getLocalTeamStore(store, teamId);
-  localTeam.escalations = (localTeam.escalations || []).map((item) => ({
-    ...item,
-    status: 'resolved',
-    resolvedAt: item.resolvedAt || new Date().toISOString()
-  }));
-  writeLocalStore(store);
-  return { localOnly: true };
+  return readJson(res);
 };
 
 export const markFeedbackViewed = async (teamId, feedbackId) => {
@@ -235,24 +132,11 @@ export const markFeedbackViewed = async (teamId, feedbackId) => {
     method: 'POST'
   });
 
-  if (res.ok) return res.json();
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to mark feedback as viewed.'));
+  }
 
-  const user = getCurrentUser();
-  const store = readLocalStore();
-  const localTeam = getLocalTeamStore(store, teamId);
-  const id = String(feedbackId);
-  const view = {
-    id: `local-view-${user?.id || getUserDisplayName(user)}-${Date.now()}`,
-    name: getUserDisplayName(user),
-    role: user?.role,
-    viewedAt: new Date().toISOString()
-  };
-
-  const existing = localTeam.views[id] || [];
-  const alreadyViewed = existing.some((item) => item.name === view.name);
-  localTeam.views[id] = alreadyViewed ? existing : [...existing, view];
-  writeLocalStore(store);
-  return { localOnly: true };
+  return readJson(res);
 };
 
 export const alertTutorAboutFeedback = async (teamId, feedbackId, reason) => {
@@ -262,22 +146,11 @@ export const alertTutorAboutFeedback = async (teamId, feedbackId, reason) => {
     body: JSON.stringify({ reason })
   });
 
-  if (res.ok) return res.json();
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to alert tutor about feedback.'));
+  }
 
-  const user = getCurrentUser();
-  const store = readLocalStore();
-  const localTeam = getLocalTeamStore(store, teamId);
-  localTeam.alerts.push({
-    id: `local-alert-${Date.now()}`,
-    teamId,
-    feedbackId,
-    reason,
-    studentName: getUserDisplayName(user),
-    status: 'open',
-    createdAt: new Date().toISOString()
-  });
-  writeLocalStore(store);
-  return { localOnly: true };
+  return readJson(res);
 };
 
 export const resolveFeedbackAlert = async (teamId, alertId) => {
@@ -285,17 +158,11 @@ export const resolveFeedbackAlert = async (teamId, alertId) => {
     method: 'PATCH'
   });
 
-  if (res.ok) return res.json();
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, 'Failed to resolve feedback alert.'));
+  }
 
-  const store = readLocalStore();
-  const localTeam = getLocalTeamStore(store, teamId);
-  localTeam.alerts = (localTeam.alerts || []).map((item) => (
-    String(item.id) === String(alertId)
-      ? { ...item, status: 'resolved', resolvedAt: new Date().toISOString() }
-      : item
-  ));
-  writeLocalStore(store);
-  return { localOnly: true };
+  return readJson(res);
 };
 
 // ---- Pure display helpers — unchanged, no storage involved ----
