@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import DashboardHeader from '../components/DashboardHeader';
 import { getCurrentUser } from '../utils/auth';
 import {
@@ -13,7 +13,6 @@ import {
   getMeetingsByTeam
 } from '../data/meetingsApi';
 import '../styles/dashboard.css';
-import { SkeletonGrid } from '../components/SkeletonCard';
 
 const ratingLabels = {
   1: '1 - Below Expectations',

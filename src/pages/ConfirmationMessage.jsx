@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import '../styles/dashboard.css';
 
@@ -10,7 +10,7 @@ const ConfirmationMessage = () => {
         if (!location.state?.fromSignup) {
             navigate('/login', { replace: true });
         }
-    }, []);
+    }, [location.state?.fromSignup, navigate]);
 
     return (
         <div className="auth-page">

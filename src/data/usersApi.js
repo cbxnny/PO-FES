@@ -2,6 +2,16 @@ import { authFetch } from '../utils/auth';
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
+// Parses a JSON response, with a readable error if the server sent HTML instead
+// (e.g. a 404 page because the endpoint isn't deployed, or a wrong API URL).
+const parseJson = async (res) => {
+  try {
+    return await res.json();
+  } catch {
+    throw new Error(`Unexpected response from the server (HTTP ${res.status}). The API may be unreachable or out of date.`);
+  }
+};
+
 // Sends parsed spreadsheet rows to the backend for bulk account creation.
 // users: [{ firstName, lastName, email, phoneNo, role }, ...]
 // Returns { total, succeeded, failed, results: [{ row, email, status, message? }] }
@@ -12,7 +22,7 @@ export const bulkImportUsers = async (users) => {
     body: JSON.stringify({ users })
   });
 
-  const data = await res.json();
+  const data = await parseJson(res);
   if (!res.ok) throw new Error(data.error || 'Failed to import users');
   return data;
 };
@@ -21,7 +31,7 @@ export const bulkImportUsers = async (users) => {
 // Returns [{ id, firstName, lastName, email, role, invitedAt }]
 export const getPendingInvites = async () => {
   const res = await authFetch(`${API_BASE}/users/pending-invites`);
-  const data = await res.json();
+  const data = await parseJson(res);
   if (!res.ok) throw new Error(data.error || 'Failed to load pending invites');
   return data.users;
 };
@@ -33,7 +43,7 @@ export const resendInvite = async (userId) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId })
   });
-  const data = await res.json();
+  const data = await parseJson(res);
   if (!res.ok) throw new Error(data.error || 'Failed to resend invite');
   return data;
 };

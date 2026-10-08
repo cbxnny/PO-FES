@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import DashboardHeader from '../components/DashboardHeader';
 import { addFeedbackToTeam, getTeamById } from '../data/feedbackApi';
 import { addMeeting } from '../data/meetingsApi';
 import '../styles/dashboard.css';
-import { SkeletonGrid } from '../components/SkeletonCard';
 
 const ratingOptions = [
   { value: '1', label: '1 - Below Expectations' },

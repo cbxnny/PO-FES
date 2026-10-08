@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginUser, validateEmail } from '../utils/auth';
@@ -11,17 +11,10 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [emailError, setEmailError] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        if (email && !validateEmail(email)) {
-            setEmailError('Enter a valid email address');
-        } else {
-            setEmailError('');
-        }
-    }, [email]);
+    const emailError = email && !validateEmail(email) ? 'Enter a valid email address' : '';
 
     const handleSubmit = async (e) => {
         e.preventDefault();

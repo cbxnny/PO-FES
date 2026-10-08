@@ -60,7 +60,7 @@ export const parseSpreadsheet = (file) => {
         const sheet = workbook.Sheets[firstSheetName];
         const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
         resolve(rawRows.map(normalizeRow));
-      } catch (err) {
+      } catch {
         reject(new Error('Could not parse file. Make sure it is a valid .csv or .xlsx file.'));
       }
     };

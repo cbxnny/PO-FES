@@ -1,4 +1,3 @@
-import React from 'react';
 import '../styles/dashboard.css';
 
 // Mimics a qut-compact-card (team card with title, two lines, a badge, two buttons)

@@ -2,11 +2,6 @@ import { authFetch } from '../utils/auth';
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
-const authHeaders = () => {
-  const token = getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
 // Returns meetings visible to the logged-in user (role-scoped server-side:
 // clients see meetings they logged, tutors see meetings for their teams,
 // students see meetings for their team, staff see everything).

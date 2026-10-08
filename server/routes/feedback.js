@@ -20,11 +20,6 @@ const TEAM_BASE_QUERY = `
   LEFT JOIN users tutor ON t.tutor_id = tutor.id
 `;
 
-const fullNameFromRow = (row, fallback = 'Unknown') => {
-  const name = `${row.firstname || ''} ${row.lastname || ''}`.trim();
-  return name || row.email || fallback;
-};
-
 const mapEscalationRow = (row) => ({
   id: row.escalation_id,
   teamId: row.team_id,

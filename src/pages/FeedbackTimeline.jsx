@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import BackButton from '../components/BackButton';
 import DashboardHeader from '../components/DashboardHeader';
@@ -549,7 +549,7 @@ const FeedbackTimeline = () => {
   const user = getCurrentUser();
   const role = normalizeRole(user?.role);
 
-  const loadTeam = () => {
+  const loadTeam = useCallback(() => {
     return Promise.all([
       getTeamById(teamId),
       getMeetingsByTeam(teamId)
@@ -558,13 +558,13 @@ const FeedbackTimeline = () => {
         setTeam(teamData);
         setMeetings(meetingsData || []);
       });
-  };
+  }, [teamId]);
 
   useEffect(() => {
     loadTeam()
       .catch(() => setError('Could not load this team. Please try again.'))
       .finally(() => setLoading(false));
-  }, [teamId]);
+  }, [loadTeam]);
 
   const toggleOpen = async (feedbackId) => {
     const willOpen = !openItems.includes(feedbackId);

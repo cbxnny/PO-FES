@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerUser, checkPasswordStrength, validateEmail } from '../utils/auth';
@@ -17,26 +17,11 @@ const SignUp = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
-    const [emailError, setEmailError] = useState('');
-    const [confirmError, setConfirmError] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        if (email && !validateEmail(email)) {
-            setEmailError('Enter a valid email address');
-        } else {
-            setEmailError('');
-        }
-    }, [email]);
-
-    useEffect(() => {
-        if (confirmPassword && password !== confirmPassword) {
-            setConfirmError('Passwords do not match');
-        } else {
-            setConfirmError('');
-        }
-    }, [password, confirmPassword]);
+    const emailError = email && !validateEmail(email) ? 'Enter a valid email address' : '';
+    const confirmError = confirmPassword && password !== confirmPassword ? 'Passwords do not match' : '';
 
     const handleSubmit = async (e) => {
         e.preventDefault();
