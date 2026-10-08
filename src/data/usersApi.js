@@ -16,3 +16,24 @@ export const bulkImportUsers = async (users) => {
   if (!res.ok) throw new Error(data.error || 'Failed to import users');
   return data;
 };
+
+// Imported accounts that haven't set a password yet.
+// Returns [{ id, firstName, lastName, email, role, invitedAt }]
+export const getPendingInvites = async () => {
+  const res = await authFetch(`${API_BASE}/users/pending-invites`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load pending invites');
+  return data.users;
+};
+
+// Re-sends the set-password invite email to one pending user.
+export const resendInvite = async (userId) => {
+  const res = await authFetch(`${API_BASE}/users/resend-invite`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to resend invite');
+  return data;
+};

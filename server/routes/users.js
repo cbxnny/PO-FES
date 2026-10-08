@@ -21,6 +21,10 @@ const NAME_REGEX = /^[A-Za-z]+(-[A-Za-z]+)*$/;
 // (04XXXXXXXX / 0[2378]XXXXXXXX), ignoring spaces/dashes the user typed.
 const AU_PHONE_REGEX = /^(?:\+61[2-478]\d{8}|0[2-478]\d{8})$/;
 const MAX_BATCH_SIZE = 500;
+// Where the invite email's link sends people to choose their password.
+// Must also be added under Supabase > Authentication > URL Configuration > Redirect URLs.
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+const SET_PASSWORD_URL = `${FRONTEND_URL}/set-password`;
 
 const validateRow = (row, index) => {
   const errors = [];
@@ -88,7 +92,7 @@ router.post('/bulk-import', authenticateToken, requireRole('coordinator'), async
     try {
       const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
         email,
-        { data: { firstName, lastName, role } }
+        { data: { firstName, lastName, role }, redirectTo: SET_PASSWORD_URL }
       );
 
       if (inviteError) {
@@ -128,6 +132,102 @@ router.post('/bulk-import', authenticateToken, requireRole('coordinator'), async
     failed: users.length - succeeded,
     results
   });
+});
+
+/**
+ * GET /api/users/pending-invites
+ * Coordinator-only. Lists imported accounts that have not set a password yet
+ * (their Supabase auth record has no password), so the UI can offer a
+ * "Resend invite" button for each.
+ */
+router.get('/pending-invites', authenticateToken, requireRole('coordinator'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.firstName, u.lastName, u.email, u.role, au.invited_at
+         FROM users u
+         JOIN auth.users au ON au.id = u.auth_id
+        WHERE au.encrypted_password IS NULL OR au.encrypted_password = ''
+        ORDER BY au.invited_at DESC NULLS LAST, u.id DESC`
+    );
+
+    res.json({
+      users: result.rows.map((r) => ({
+        id: r.id,
+        firstName: r.firstname,
+        lastName: r.lastname,
+        email: r.email,
+        role: r.role,
+        invitedAt: r.invited_at
+      }))
+    });
+  } catch (err) {
+    console.error('PENDING INVITES ERROR:', err);
+    res.status(500).json({ error: 'Failed to load pending invites.' });
+  }
+});
+
+/**
+ * POST /api/users/resend-invite
+ * Body: { userId }   (users.id from our own table)
+ * Coordinator-only. Re-sends the invite email to an imported user who has not
+ * set a password yet. Refuses if the account already has a password.
+ *
+ * If the person clicked their original link (which marks the email confirmed)
+ * but never finished choosing a password, Supabase will refuse to re-invite a
+ * "confirmed" user — so we reset the confirmation first, which is safe because
+ * they have no password and therefore cannot sign in anyway.
+ */
+router.post('/resend-invite', authenticateToken, requireRole('coordinator'), async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.firstName, u.lastName, u.email, u.role, u.auth_id,
+              au.encrypted_password, au.email_confirmed_at
+         FROM users u
+         JOIN auth.users au ON au.id = u.auth_id
+        WHERE u.id = $1`,
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const row = result.rows[0];
+
+    if (row.encrypted_password) {
+      return res.status(409).json({ error: 'This user has already set a password. No invite needed.' });
+    }
+
+    if (row.email_confirmed_at) {
+      const { error: resetError } = await supabaseAdmin.auth.admin.updateUserById(row.auth_id, {
+        email_confirm: false
+      });
+      if (resetError) {
+        console.error('RESEND INVITE RESET ERROR:', resetError);
+        return res.status(500).json({ error: 'Could not prepare this account for a new invite.' });
+      }
+    }
+
+    const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(row.email, {
+      data: { firstName: row.firstname, lastName: row.lastname, role: row.role },
+      redirectTo: SET_PASSWORD_URL
+    });
+
+    if (inviteError) {
+      return res.status(400).json({ error: inviteError.message });
+    }
+
+    res.json({ message: `Invite re-sent to ${row.email}.` });
+  } catch (err) {
+    console.error('RESEND INVITE ERROR:', err);
+    res.status(500).json({ error: 'Server error re-sending invite.' });
+  }
 });
 
 module.exports = router;

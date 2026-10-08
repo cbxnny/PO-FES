@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import ConfirmationMessage from './pages/ConfirmationMessage';
+import SetPassword from './pages/SetPassword';
 import ProjectOwnerDashboard from './pages/ProjectOwnerDashboard';
 import StudentDashboard from './pages/StudentDashboard';
 import TutorDashboard from './pages/TutorDashboard';
@@ -33,6 +34,9 @@ function App() {
           path="/confirmation"
           element={<ConfirmationMessage />}
         />
+
+        {/* Landing page for the invite email sent to bulk-imported users */}
+        <Route path="/set-password" element={<SetPassword />} />
 
         <Route
           path="/client-dashboard"

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { parseSpreadsheet } from '../utils/spreadsheetParser';
-import { bulkImportUsers } from '../data/usersApi';
+import { bulkImportUsers, getPendingInvites, resendInvite } from '../data/usersApi';
 
 // Coordinator-only bulk account import, shown as a modal (matches the
 // styling of CommentForClientModal / the rating-criteria modal elsewhere
@@ -13,6 +13,33 @@ const BulkImportModal = ({ onClose }) => {
   const [parseError, setParseError] = useState('');
   const [importResult, setImportResult] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pending, setPending] = useState([]);
+  const [pendingError, setPendingError] = useState('');
+  // Per-user resend state: { [userId]: 'sending' | 'sent' | 'error:<message>' }
+  const [resendState, setResendState] = useState({});
+
+  const loadPending = async () => {
+    try {
+      setPending(await getPendingInvites());
+      setPendingError('');
+    } catch (err) {
+      setPendingError(err.message);
+    }
+  };
+
+  useEffect(() => {
+    loadPending();
+  }, []);
+
+  const handleResend = async (userId) => {
+    setResendState((prev) => ({ ...prev, [userId]: 'sending' }));
+    try {
+      await resendInvite(userId);
+      setResendState((prev) => ({ ...prev, [userId]: 'sent' }));
+    } catch (err) {
+      setResendState((prev) => ({ ...prev, [userId]: `error:${err.message}` }));
+    }
+  };
 
   const handleFileChange = async (event) => {
     const file = event.target.files?.[0];
@@ -38,6 +65,7 @@ const BulkImportModal = ({ onClose }) => {
     try {
       const result = await bulkImportUsers(rows);
       setImportResult(result);
+      loadPending();
     } catch (err) {
       setImportResult({ error: err.message });
     } finally {
@@ -148,6 +176,50 @@ const BulkImportModal = ({ onClose }) => {
               </table>
             </div>
           )}
+
+          <div style={{ marginTop: '24px' }}>
+            <h3>Pending Invites</h3>
+            <p>Imported accounts that haven't set a password yet.</p>
+            {pendingError && <p className="auth-error">{pendingError}</p>}
+            {!pendingError && pending.length === 0 && <p>No pending invites.</p>}
+            {pending.length > 0 && (
+              <table className="qut-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pending.map((u) => {
+                    const state = resendState[u.id];
+                    return (
+                      <tr key={u.id}>
+                        <td>{u.firstName} {u.lastName}</td>
+                        <td>{u.email}</td>
+                        <td>{u.role}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="qut-btn qut-btn-outline"
+                            onClick={() => handleResend(u.id)}
+                            disabled={state === 'sending' || state === 'sent'}
+                          >
+                            {state === 'sending' ? 'Sending...' : state === 'sent' ? 'Sent ✓' : 'Resend invite'}
+                          </button>
+                          {state?.startsWith('error:') && (
+                            <div className="auth-field-error">{state.slice(6)}</div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
 
         <div className="tutor-comment-modal-actions">
