@@ -5,7 +5,6 @@ import DashboardHeader from '../components/DashboardHeader';
 
 import {
   getTeamById,
-  resolveActiveEscalations,
   getTeams,
   resolveEscalation,
   getTeamStatus,
@@ -124,37 +123,19 @@ const getActiveEscalations = (team) => {
   );
 };
 
-const getCoordinatorEscalations = (team) => {
-  return getActiveEscalations(team).filter((item) =>
-    ['coordinator', 'both'].includes(item.target)
-  );
-};
-
 const getLiaisonEscalations = (team) => {
   return getActiveEscalations(team).filter((item) =>
     ['liaison', 'both'].includes(item.target)
   );
 };
 
-const isEscalatedToCoordinator = (team) => {
-  return (
-    getCoordinatorEscalations(team).length > 0 ||
-    (team.escalated && Number(team.escalationLevel) === 1)
-  );
-};
+const isEscalatedToLiaison = (team) => getLiaisonEscalations(team).length > 0;
 
-const isEscalatedToLiaison = (team) => {
-  return (
-    getLiaisonEscalations(team).length > 0 ||
-    (team.escalated && Number(team.escalationLevel) >= 2)
-  );
-};
-
-const getEscalationLevelFromItems = (items = []) => {
-  if (items.some((item) => ['liaison', 'both'].includes(item.target))) return 2;
-  if (items.some((item) => item.target === 'coordinator')) return 1;
-  return 0;
-};
+// The overview's Escalated column counts issues forwarded by a Unit Coordinator.
+// Tutor-to-UC-only escalations must never count as Industry Liaison work.
+const isForwardedToLiaison = (team) => getLiaisonEscalations(team).some(
+  (item) => item.createdByRole === 'coordinator'
+);
 
 const getLatestRatingText = (team) => {
   const feedback = getLatestClientFeedback(team);
@@ -179,8 +160,8 @@ const getIssueReasons = (team) => {
     reasons.push('Below Expectations rating');
   }
 
-  if (team.escalated || getActiveEscalations(team).length > 0) {
-    reasons.push('Escalated by staff');
+  if (isEscalatedToLiaison(team)) {
+    reasons.unshift('Escalated to Industry Liaison');
   }
 
   return reasons;
@@ -219,9 +200,9 @@ const IndustryLiaisonDashboard = () => {
 
             return {
               ...teamDetails,
-              escalated: teamDetails.escalated || team.escalated,
-              escalationLevel: teamDetails.escalationLevel ?? team.escalationLevel ?? 0,
-              activeEscalations: teamDetails.activeEscalations || team.activeEscalations || [],
+              escalated: teamDetails.escalated,
+              escalationLevel: teamDetails.escalationLevel,
+              activeEscalations: teamDetails.activeEscalations || [],
               meetings: meetings || []
             };
           })
@@ -241,50 +222,35 @@ const IndustryLiaisonDashboard = () => {
 
   const issueTeams = useMemo(() => {
     return filteredTeams
-      .filter((team) => getIssueReasons(team).length > 0)
+      .filter(isEscalatedToLiaison)
       .sort((a, b) => getIssueReasons(b).length - getIssueReasons(a).length);
   }, [filteredTeams]);
 
   const unitGroups = useMemo(() => groupTeamsByUnit(teams), [teams]);
 
   const handleResolveEscalations = async (team) => {
-    const activeEscalations = getActiveEscalations(team);
     const liaisonEscalations = getLiaisonEscalations(team);
+    if (!liaisonEscalations.length) return;
 
-    const legacyLiaisonEscalation =
-      team.escalated &&
-      Number(team.escalationLevel) >= 2 &&
-      !activeEscalations.length;
-
-    if (!liaisonEscalations.length && !legacyLiaisonEscalation) return;
-
-    if (!window.confirm('Mark this Industry Liaison escalation as resolved?')) return;
+    if (!window.confirm('Resolve the escalations addressed to you for this team? Linked escalations will also close.')) return;
 
     try {
-      if (liaisonEscalations.length) {
-        await Promise.all(
-          liaisonEscalations.map((item) => resolveEscalation(team.id, item.id))
-        );
-      } else {
-        await resolveActiveEscalations(team.id);
-      }
-
-      setTeams((current) =>
-        current.map((item) => {
-          if (item.id !== team.id) return item;
-
-          const remainingEscalations = getActiveEscalations(item).filter(
-            (escalation) => !['liaison', 'both'].includes(escalation.target)
-          );
-
-          return {
-            ...item,
-            activeEscalations: remainingEscalations,
-            escalated: remainingEscalations.length > 0,
-            escalationLevel: getEscalationLevelFromItems(remainingEscalations)
-          };
-        })
+      // A resolution closes all recipients of the same issue. Resolve each
+      // distinct issue only once, so later calls aren't sent for a closed item.
+      const distinctIssues = new Map(
+        liaisonEscalations.map((item) => [item.feedbackId ?? 'team', item])
       );
+      for (const escalation of distinctIssues.values()) {
+        await resolveEscalation(team.id, escalation.id);
+      }
+      // Re-fetch the saved state; related coordinator escalation records are
+      // resolved by the backend too, so don't keep stale local flags.
+      const updatedTeam = await getTeamById(team.id);
+      setTeams((current) => current.map((item) => (
+        item.id === team.id
+          ? { ...item, ...updatedTeam, meetings: item.meetings }
+          : item
+      )));
     } catch (err) {
       alert(err.message || 'Could not resolve escalation.');
     }
@@ -347,7 +313,7 @@ const IndustryLiaisonDashboard = () => {
       unit,
       totalTeams: unitTeams.length,
       needsFollowUp: unitTeams.filter(isEscalatedToLiaison).length,
-      escalated: unitTeams.filter(isEscalatedToCoordinator).length
+      escalated: unitTeams.filter(isForwardedToLiaison).length
     };
   });
 
@@ -420,7 +386,7 @@ const IndustryLiaisonDashboard = () => {
                     <th>Unit</th>
                     <th>Total Teams</th>
                     <th>Needs Follow-up</th>
-                    <th>Escalated</th>
+                    <th>Escalated by UC</th>
                   </tr>
                 </thead>
 
@@ -446,11 +412,8 @@ const IndustryLiaisonDashboard = () => {
                 issueTeams.map((team) => {
                   const status = getTeamStatus(team);
                   const reasons = getIssueReasons(team);
-                  const activeEscalations = getActiveEscalations(team);
-                  const liaisonEscalations = getLiaisonEscalations(team);
-                  const canResolve =
-                    liaisonEscalations.length > 0 ||
-                    (team.escalated && Number(team.escalationLevel) >= 2);
+                  const activeEscalations = getLiaisonEscalations(team);
+                  const canResolve = activeEscalations.length > 0;
 
                   return (
                     <section className="qut-card liaison-issue-card" key={team.id}>
@@ -499,7 +462,7 @@ const IndustryLiaisonDashboard = () => {
 
                         {canResolve && (
                           <button
-                            className="qut-btn qut-btn-primary"
+                            className="qut-btn qut-btn-outline"
                             onClick={() => handleResolveEscalations(team)}
                           >
                             Issue resolved

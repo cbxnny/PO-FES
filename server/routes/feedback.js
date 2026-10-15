@@ -31,6 +31,7 @@ const mapEscalationRow = (row) => ({
   resolvedAt: row.resolved_at,
   createdBy: row.created_by,
   createdByName: row.created_by_name,
+  createdByRole: row.created_by_role ? normalizeRole(row.created_by_role) : null,
   resolvedBy: row.resolved_by,
   resolvedByName: row.resolved_by_name
 });
@@ -55,6 +56,7 @@ const getEscalationsForTeams = async (teamIds) => {
   const result = await pool.query(
     `SELECT e.*, 
             cb.firstname || ' ' || cb.lastname AS created_by_name,
+            cb.role AS created_by_role,
             rb.firstname || ' ' || rb.lastname AS resolved_by_name
      FROM escalations e
      LEFT JOIN users cb ON e.created_by = cb.id
@@ -218,8 +220,8 @@ const buildTeamResponse = async (teamRow) => {
     clientPhone: teamRow.client_phone,
     tutorId: teamRow.tutor_id,
     tutorName: teamRow.tutor_name,
-    escalated: activeEscalations.length > 0 || Boolean(teamRow.escalated),
-    escalationLevel: teamRow.escalation_level || 0,
+    escalated: activeEscalations.length > 0,
+    escalationLevel: activeEscalations.some((item) => ['liaison', 'both'].includes(item.target)) ? 2 : (activeEscalations.length ? 1 : 0),
     escalationNote: teamRow.escalation_note,
     escalations,
     activeEscalations,
@@ -229,8 +231,8 @@ const buildTeamResponse = async (teamRow) => {
   };
 };
 
-const recalcTeamEscalationStatus = async (teamId) => {
-  const activeResult = await pool.query(
+const recalcTeamEscalationStatus = async (teamId, db = pool) => {
+  const activeResult = await db.query(
     `SELECT target, note, created_by, created_at
      FROM escalations
      WHERE team_id = $1 AND status <> 'resolved'
@@ -246,7 +248,7 @@ const recalcTeamEscalationStatus = async (teamId) => {
       : 0;
   const latest = activeRows[0];
 
-  await pool.query(
+  await db.query(
     `UPDATE teams
      SET escalated = $1,
          escalation_level = $2,
@@ -332,8 +334,8 @@ router.get('/', authenticateToken, async (req, res) => {
         clientEmail: row.client_email,
         clientPhone: row.client_phone,
         tutorName: row.tutor_name,
-        escalated: activeEscalations.length > 0 || Boolean(row.escalated),
-        escalationLevel: row.escalation_level || 0,
+        escalated: activeEscalations.length > 0,
+        escalationLevel: activeEscalations.some((item) => ['liaison', 'both'].includes(item.target)) ? 2 : (activeEscalations.length ? 1 : 0),
         escalations,
         activeEscalations,
         studentAlerts: alertsByTeam[row.team_id] || [],
@@ -462,96 +464,125 @@ router.post('/:teamId/escalate', authenticateToken, createEscalation);
 router.post('/:teamId/escalations', authenticateToken, createEscalation);
 
 
+// One escalation issue is identified by its team and optional feedback item.
+// Target rows for that same issue can be assigned to UC, IL, or both.
+// Resolving an addressed issue closes every active target for that issue.
+// Different feedback items stay independent. The schema cannot distinguish
+// two separate team-level issues with feedback_id = NULL; see handover notes.
 const getResolvableTargetsForRole = (role) => {
   if (role === 'coordinator') return ['coordinator', 'both'];
   if (role === 'liaison') return ['liaison', 'both'];
-  if (role === 'tutor') return ['coordinator', 'liaison', 'both'];
   return [];
 };
 
 router.patch('/:teamId/escalations/resolve-active', authenticateToken, async (req, res) => {
   const { teamId } = req.params;
-  const normalizedRole = normalizeRole(req.user.role);
-  const resolvableTargets = getResolvableTargetsForRole(normalizedRole);
+  const targets = getResolvableTargetsForRole(normalizeRole(req.user.role));
 
-  if (!resolvableTargets.length) {
-    return res.status(403).json({ error: 'Only staff can resolve escalations.' });
+  if (!targets.length) {
+    return res.status(403).json({ error: 'Only the addressed coordinator or liaison can resolve an escalation.' });
   }
 
+  const client = await pool.connect();
   try {
-    await pool.query(
-      `UPDATE escalations
-       SET status = 'resolved',
-           resolved_by = $1,
-           resolved_at = NOW()
-       WHERE team_id = $2
-         AND status <> 'resolved'
-         AND target = ANY($3::text[])`,
-      [req.user.id, teamId, resolvableTargets]
+    await client.query('BEGIN');
+    // Only close issues with an active target addressed to this role.
+    // Match feedback_id with IS NOT DISTINCT FROM so team-level NULLs match.
+    const result = await client.query(
+      `UPDATE escalations e
+       SET status = 'resolved', resolved_by = $1, resolved_at = NOW()
+       WHERE e.team_id = $2
+         AND e.status <> 'resolved'
+         AND EXISTS (
+           SELECT 1 FROM escalations addressed
+           WHERE addressed.team_id = e.team_id
+             AND addressed.feedback_id IS NOT DISTINCT FROM e.feedback_id
+             AND addressed.status <> 'resolved'
+             AND addressed.target = ANY($3::text[])
+         )
+       RETURNING e.escalation_id`,
+      [req.user.id, teamId, targets]
     );
 
-    const status = await recalcTeamEscalationStatus(teamId);
+    if (!result.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'There are no active escalations addressed to your role.' });
+    }
 
-    res.json({
-      success: true,
-      team: status
-    });
+    const status = await recalcTeamEscalationStatus(teamId, client);
+    await client.query('COMMIT');
+    res.json({ success: true, resolvedCount: result.rowCount, team: status });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error(err);
     res.status(500).json({ error: 'Server error resolving escalations.' });
+  } finally {
+    client.release();
   }
 });
 
 router.patch('/:teamId/escalations/:escalationId/resolve', authenticateToken, async (req, res) => {
   const { teamId, escalationId } = req.params;
-  const normalizedRole = normalizeRole(req.user.role);
-  const resolvableTargets = getResolvableTargetsForRole(normalizedRole);
+  const targets = getResolvableTargetsForRole(normalizeRole(req.user.role));
 
-  if (!resolvableTargets.length) {
-    return res.status(403).json({ error: 'Only staff can resolve escalations.' });
+  if (!targets.length) {
+    return res.status(403).json({ error: 'Only the addressed coordinator or liaison can resolve an escalation.' });
   }
 
+  const client = await pool.connect();
   try {
-    const escalationResult = await pool.query(
-      `SELECT *
-       FROM escalations
-       WHERE escalation_id = $1
-         AND team_id = $2`,
+    await client.query('BEGIN');
+    const selected = await client.query(
+      `SELECT * FROM escalations
+       WHERE escalation_id = $1 AND team_id = $2
+       FOR UPDATE`,
       [escalationId, teamId]
     );
 
-    if (escalationResult.rows.length === 0) {
+    if (!selected.rows.length) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Escalation not found.' });
     }
 
-    const escalation = escalationResult.rows[0];
-
-    if (!resolvableTargets.includes(escalation.target)) {
-      return res.status(403).json({
-        error: 'This escalation is assigned to another role.'
-      });
+    const escalation = selected.rows[0];
+    if (!targets.includes(escalation.target)) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'This escalation is assigned to another role.' });
+    }
+    if (escalation.status === 'resolved') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'This issue has already been resolved.' });
     }
 
-    const result = await pool.query(
+    // Resolves both recipients of the same issue, but not escalations
+    // attached to other feedback entries belonging to this team.
+    await client.query(
       `UPDATE escalations
-       SET status = 'resolved',
-           resolved_by = $1,
-           resolved_at = NOW()
-       WHERE escalation_id = $2
-         AND team_id = $3
-       RETURNING *`,
-      [req.user.id, escalationId, teamId]
+       SET status = 'resolved', resolved_by = $1, resolved_at = NOW()
+       WHERE team_id = $2
+         AND feedback_id IS NOT DISTINCT FROM $3::integer
+         AND status <> 'resolved'`,
+      [req.user.id, teamId, escalation.feedback_id]
     );
 
-    const status = await recalcTeamEscalationStatus(teamId);
-
+    const status = await recalcTeamEscalationStatus(teamId, client);
+    await client.query('COMMIT');
     res.json({
-      escalation: mapEscalationRow(result.rows[0]),
+      success: true,
+      escalation: mapEscalationRow({
+        ...escalation,
+        status: 'resolved',
+        resolved_by: req.user.id,
+        resolved_at: new Date().toISOString()
+      }),
       team: status
     });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error(err);
     res.status(500).json({ error: 'Server error resolving escalation.' });
+  } finally {
+    client.release();
   }
 });
 

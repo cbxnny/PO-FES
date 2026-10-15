@@ -37,7 +37,6 @@ const initDb = async () => {
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      
       CREATE TABLE IF NOT EXISTS teams (
         team_id SERIAL PRIMARY KEY,
         project_id INTEGER NOT NULL REFERENCES projects(project_id),
@@ -86,8 +85,9 @@ const initDb = async () => {
       );
 
       -- Per-issue escalation tracking: a team can have several open
-      -- escalations at once, each aimed at a specific target and
-      -- independently resolvable. Replaces the old single
+      -- escalations at once, each aimed at a specific target.
+      -- Multiple targets for the same team/feedback issue are resolved
+      -- together. Replaces the old single
       -- teams.escalation_level flag as the source of truth (that column
       -- is still kept in sync for quick list-view filtering).
       CREATE TABLE IF NOT EXISTS escalations (

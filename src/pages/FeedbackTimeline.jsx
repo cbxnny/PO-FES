@@ -297,9 +297,11 @@ const canEscalateFeedback = (feedback, user) => {
   return ['tutor', 'coordinator'].includes(role) && isClientFeedback(feedback) && !feedback.isRemoved;
 };
 
-const canResolveEscalations = (user) => {
+const canResolveEscalation = (escalation, user) => {
   const role = normalizeRole(user?.role);
-  return ['tutor', 'coordinator', 'liaison'].includes(role);
+  if (role === 'coordinator') return ['coordinator', 'both'].includes(escalation.target);
+  if (role === 'liaison') return ['liaison', 'both'].includes(escalation.target);
+  return false;
 };
 
 const getTutorCommentText = (feedback) => {
@@ -877,7 +879,7 @@ const FeedbackTimeline = () => {
                         <span>
                           Escalated to {escalation.target} {escalation.note ? `- ${escalation.note}` : ''}
                         </span>
-                        {canResolveEscalations(user) && (
+                        {canResolveEscalation(escalation, user) && (
                           <button
                             className="qut-btn qut-btn-outline qut-btn-sm"
                             onClick={() => handleResolveEscalation(escalation)}
