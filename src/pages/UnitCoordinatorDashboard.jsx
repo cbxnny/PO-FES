@@ -5,7 +5,6 @@ import DashboardHeader from '../components/DashboardHeader';
 
 import {
   escalateIssue,
-  resolveActiveEscalations,
   resolveEscalation,
   formatDate,
   getTeamById,
@@ -180,25 +179,9 @@ const getLiaisonEscalations = (team) => {
   );
 };
 
-const isEscalatedToCoordinator = (team) => {
-  return (
-    getCoordinatorEscalations(team).length > 0 ||
-    (team.escalated && Number(team.escalationLevel) === 1)
-  );
-};
+const isEscalatedToCoordinator = (team) => getCoordinatorEscalations(team).length > 0;
 
-const isEscalatedToLiaison = (team) => {
-  return (
-    getLiaisonEscalations(team).length > 0 ||
-    (team.escalated && Number(team.escalationLevel) >= 2)
-  );
-};
-
-const getEscalationLevelFromItems = (items = []) => {
-  if (items.some((item) => ['liaison', 'both'].includes(item.target))) return 2;
-  if (items.some((item) => item.target === 'coordinator')) return 1;
-  return 0;
-};
+const isEscalatedToLiaison = (team) => getLiaisonEscalations(team).length > 0;
 
 const getAttentionReasons = (team) => {
   const status = getTeamStatus(team);
@@ -254,9 +237,9 @@ const UnitCoordinatorDashboard = () => {
 
             return {
               ...teamDetails,
-              escalated: teamDetails.escalated || team.escalated,
-              escalationLevel: teamDetails.escalationLevel ?? team.escalationLevel ?? 0,
-              activeEscalations: teamDetails.activeEscalations || team.activeEscalations || [],
+              escalated: teamDetails.escalated,
+              escalationLevel: teamDetails.escalationLevel,
+              activeEscalations: teamDetails.activeEscalations || [],
               meetings: meetings || []
             };
           })
@@ -317,26 +300,12 @@ const UnitCoordinatorDashboard = () => {
         note: escalationNote.trim()
       });
 
-      setTeams((currentTeams) =>
-        currentTeams.map((team) =>
-          team.id === escalationTeam.id
-            ? {
-                ...team,
-                escalationLevel: 2,
-                escalated: true,
-                activeEscalations: [
-                  ...getActiveEscalations(team),
-                  {
-                    id: `temp-${Date.now()}`,
-                    target: 'liaison',
-                    note: escalationNote.trim(),
-                    status: 'open'
-                  }
-                ]
-              }
-            : team
-        )
-      );
+      const updatedTeam = await getTeamById(escalationTeam.id);
+      setTeams((currentTeams) => currentTeams.map((team) => (
+        team.id === escalationTeam.id
+          ? { ...team, ...updatedTeam, meetings: team.meetings }
+          : team
+      )));
 
       setEscalationTeam(null);
       setEscalationNote('');
@@ -348,43 +317,26 @@ const UnitCoordinatorDashboard = () => {
   };
 
   const handleResolveEscalations = async (team) => {
-    const activeEscalations = getActiveEscalations(team);
     const coordinatorEscalations = getCoordinatorEscalations(team);
+    if (!coordinatorEscalations.length) return;
 
-    const legacyCoordinatorEscalation =
-      team.escalated &&
-      Number(team.escalationLevel) === 1 &&
-      !activeEscalations.length;
-
-    if (!coordinatorEscalations.length && !legacyCoordinatorEscalation) return;
-
-    if (!window.confirm('Mark this coordinator escalation as resolved?')) return;
+    if (!window.confirm('Resolve the escalations addressed to you for this team? Linked escalations will also close.')) return;
 
     try {
-      if (coordinatorEscalations.length) {
-        await Promise.all(
-          coordinatorEscalations.map((item) => resolveEscalation(team.id, item.id))
-        );
-      } else {
-        await resolveActiveEscalations(team.id);
-      }
-
-      setTeams((currentTeams) =>
-        currentTeams.map((item) => {
-          if (item.id !== team.id) return item;
-
-          const remainingEscalations = getActiveEscalations(item).filter(
-            (escalation) => !['coordinator', 'both'].includes(escalation.target)
-          );
-
-          return {
-            ...item,
-            activeEscalations: remainingEscalations,
-            escalated: remainingEscalations.length > 0,
-            escalationLevel: getEscalationLevelFromItems(remainingEscalations)
-          };
-        })
+      // A resolution closes all recipients of the same issue. Resolve each
+      // distinct issue only once, so later calls aren't sent for a closed item.
+      const distinctIssues = new Map(
+        coordinatorEscalations.map((item) => [item.feedbackId ?? 'team', item])
       );
+      for (const escalation of distinctIssues.values()) {
+        await resolveEscalation(team.id, escalation.id);
+      }
+      const updatedTeam = await getTeamById(team.id);
+      setTeams((currentTeams) => currentTeams.map((item) => (
+        item.id === team.id
+          ? { ...item, ...updatedTeam, meetings: item.meetings }
+          : item
+      )));
     } catch (err) {
       alert(err.message || 'Could not resolve escalation.');
     }
@@ -659,9 +611,7 @@ const UnitCoordinatorDashboard = () => {
                   filteredTeams.map((team) => {
                     const status = getTeamStatus(team);
                     const attentionReasons = getAttentionReasons(team);
-                    const canResolve =
-                      getCoordinatorEscalations(team).length > 0 ||
-                      (team.escalated && Number(team.escalationLevel) === 1);
+                    const canResolve = getCoordinatorEscalations(team).length > 0;
 
                     return (
                       <section className="qut-card coordinator-team-card" key={team.id}>
@@ -744,9 +694,7 @@ const UnitCoordinatorDashboard = () => {
                     {filteredTeams.map((team) => {
                       const status = getTeamStatus(team);
                       const attentionReasons = getAttentionReasons(team);
-                      const canResolve =
-                        getCoordinatorEscalations(team).length > 0 ||
-                        (team.escalated && Number(team.escalationLevel) === 1);
+                      const canResolve = getCoordinatorEscalations(team).length > 0;
 
                       return (
                         <tr key={team.id}>
